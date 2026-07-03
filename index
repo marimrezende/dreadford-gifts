@@ -92,7 +92,7 @@
   <header>
     <div class="eyebrow">Dreadford · Chronicle</div>
     <h1>Gifts of the Blood</h1>
-    <p class="tagline">The compendium of the blood's gifts — each discipline on its own page, with a navigable tree and full descriptions.</p>
+    <p class="tagline">The compendium of the blood's gifts: each discipline on its own page, with a navigable tree and full descriptions.</p>
     <div class="rule"></div>
   </header>
 
@@ -100,7 +100,7 @@
     <div class="progress"><b id="done">0</b> of <span id="total">0</span> gifts ready</div>
     <div class="search">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input id="q" type="text" placeholder="Search a gift or discipline…" autocomplete="off">
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
     </div>
   </div>
 
