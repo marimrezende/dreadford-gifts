@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gifts of the Blood — Compendium</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0705; --ink:#f2e6da; --ink-dim:#a88f7e; --ink-faint:#7a6353;
+    --line:#2c1c14; --line-lit:#c8703c; --blood:#8a1418; --blood-lit:#d8232a;
+    --gold:#e8b45a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(90% 60% at 50% -8%, #1c0f09 0%, transparent 60%),
+      radial-gradient(120% 80% at 50% 120%, #16100c 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:"Spectral",Georgia,serif; min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:0 22px 90px}
+
+  /* ---------- masthead ---------- */
+  header{text-align:center;padding:74px 0 30px;position:relative}
+  header::before{content:"";position:absolute;left:50%;top:30px;transform:translateX(-50%);
+    width:52px;height:52px;border:1px solid #4a2f1e;border-radius:50%;opacity:.5}
+  header::after{content:"❦";position:absolute;left:50%;top:40px;transform:translateX(-50%);color:#6e4128;font-size:20px;opacity:.7}
+  .eyebrow{font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:var(--ink-faint);margin:44px 0 14px}
+  h1{font-family:"Cinzel",serif;font-weight:800;letter-spacing:.03em;margin:0;line-height:1;
+    font-size:clamp(34px,7vw,62px);color:#f4e2cd;text-shadow:0 2px 0 #000, 0 0 34px rgba(138,20,24,.28)}
+  h1 .amp{color:var(--blood-lit)}
+  .tagline{margin:16px auto 0;max-width:560px;color:var(--ink-dim);font-size:15.5px;font-style:italic;line-height:1.5}
+  .rule{width:120px;height:1px;margin:26px auto 0;background:linear-gradient(90deg,transparent,#5a3a26,transparent)}
+
+  /* ---------- controls ---------- */
+  .bar{display:flex;align-items:center;gap:16px;margin:30px 0 8px;flex-wrap:wrap}
+  .progress{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .progress b{color:var(--line-lit);font-weight:600}
+  .search{margin-left:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14.5px;color:var(--ink);background:rgba(20,11,8,.85);
+    border:1px solid var(--line);border-radius:2px;padding:9px 12px 9px 34px;width:230px;outline:none;transition:.15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.16)}
+  .search input::placeholder{color:#836a59;font-style:italic}
+  .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#836a59;fill:none;stroke-width:2}
+
+  /* ---------- sections ---------- */
+  .movement{margin-top:46px}
+  .movement > h2{font-family:"Cinzel",serif;font-weight:600;font-size:14px;letter-spacing:.24em;text-transform:uppercase;
+    color:#d9a06a;margin:0 0 3px;display:flex;align-items:center;gap:14px}
+  .movement > h2 .idx{font-size:12px;color:var(--ink-faint);font-weight:500}
+  .movement > h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,#3a2519,transparent)}
+  .movement .sub{color:var(--ink-faint);font-size:13px;font-style:italic;margin:0 0 18px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+
+  .gift{position:relative;display:block;text-decoration:none;color:inherit;
+    background:linear-gradient(180deg,rgba(28,17,11,.9),rgba(17,10,7,.9));
+    border:1px solid #35231a;border-radius:5px;padding:16px 18px 15px;overflow:hidden;transition:.16s ease}
+  .gift .accent{position:absolute;left:0;top:0;bottom:0;width:3px;background:#4a2f1e;transition:.16s}
+  .gift .nm{font-family:"Cinzel",serif;font-weight:600;font-size:17px;letter-spacing:.01em;color:#efdcc7;line-height:1.15}
+  .gift .disc{font-size:13px;color:var(--ink-dim);margin-top:4px;font-style:italic}
+  .gift .foot{display:flex;align-items:center;gap:8px;margin-top:13px;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+  .seal{width:8px;height:8px;border-radius:50%}
+  .gift.ready{border-color:#5a3324;cursor:pointer}
+  .gift.ready .accent{background:linear-gradient(180deg,var(--blood-lit),var(--blood))}
+  .gift.ready .seal{background:var(--blood-lit);box-shadow:0 0 8px rgba(216,35,42,.7)}
+  .gift.ready .foot{color:#d98a5a}
+  .gift.ready .go{margin-left:auto;color:#d98a5a;transition:transform .16s}
+  .gift.ready:hover{transform:translateY(-3px);border-color:var(--blood-lit);
+    box-shadow:0 10px 30px rgba(0,0,0,.55), 0 0 0 1px rgba(216,35,42,.2)}
+  .gift.ready:hover .accent{width:5px}
+  .gift.ready:hover .go{transform:translateX(4px)}
+  .gift.soon{cursor:default}
+  .gift.soon .nm{color:#c3ab97}
+  .gift.soon .seal{background:#4a3a2e}
+  .gift.soon .foot{color:var(--ink-faint)}
+  .gift.soon:hover{border-color:#4a3021;transform:translateY(-2px)}
+  .gift.hide{display:none}
+
+  .empty{display:none;color:var(--ink-faint);font-style:italic;padding:30px 0;text-align:center}
+  footer{margin-top:64px;text-align:center;color:var(--ink-faint);font-size:12.5px;line-height:1.7}
+  footer .sep{color:#3a2519;margin:0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Dreadford · Chronicle</div>
+    <h1>Gifts of the Blood</h1>
+    <p class="tagline">The compendium of the blood's gifts — each discipline on its own page, with a navigable tree and full descriptions.</p>
+    <div class="rule"></div>
+  </header>
+
+  <div class="bar">
+    <div class="progress"><b id="done">0</b> of <span id="total">0</span> gifts ready</div>
+    <div class="search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="q" type="text" placeholder="Search a gift or discipline…" autocomplete="off">
+    </div>
+  </div>
+
+  <main id="main"></main>
+  <p class="empty" id="empty">No gift found by that name.</p>
+
+  <footer>
+    To publish a new gift: generate its HTML, drop it in the repository, and edit the list at the top of the code
+    <span class="sep">·</span> change <code>status:'soon'</code> to <code>status:'ready'</code> and set the <code>file</code>.
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   GIFT LIST  —  edit only this to keep the hub up to date.
+   When you finish a gift:
+     1) upload its HTML into the same repository (same folder as index)
+     2) change status:'soon' -> status:'ready'
+     3) fill in file:'file-name.html'
+   ============================================================ */
+const CATEGORIES = [
+  {key:"house",  title:"House Gifts",   sub:"Lineage disciplines, unique to each house."},
+  {key:"common", title:"Common Gifts",  sub:"The disciplines shared among the undead."},
+  {key:"blood",  title:"Blood Magic",   sub:"The Arts — vitae sorcery."},
+  {key:"exp",    title:"Experimental",  sub:"In development — data still in draft."},
+];
+
+const GIFTS = [
+  // ---- House ----
+  {cat:"house", name:"Drakul",    disc:"Tiamat's Sovereignty",      status:"soon"},
+  {cat:"house", name:"Basilisk",  disc:"Kingu's Desolation",        status:"soon"},
+  {cat:"house", name:"Ashk'ari",  disc:"Utnapishtim's Insight",     status:"soon"},
+  {cat:"house", name:"Strix",     disc:"Ishtar's Whisper",          status:"soon"},
+  {cat:"house", name:"Moroi",     disc:"Uttu's Web",                status:"soon"},
+  {cat:"house", name:"Volkos",    disc:"Enkidu's Wrath",            status:"soon"},
+  {cat:"house", name:"Leviathan", disc:"Gilgamesh's Tyranny",       status:"soon"},
+  {cat:"house", name:"Orlok",     disc:"Ekimmu's Dirge",            status:"soon"},
+  {cat:"house", name:"Panthera",  disc:"Nergal's Favor",            status:"soon"},
+  {cat:"house", name:"Agnus",     disc:"Lamb's Benediction · Obeah/Valeren", status:"soon"},
+
+  // ---- Common ----
+  {cat:"common", name:"Hermes' Swiftness",  disc:"Celerity",    status:"soon"},
+  {cat:"common", name:"Divine Might",       disc:"Vigor / Praestantia", status:"soon"},
+  {cat:"common", name:"Balder's Endurance", disc:"Resilience",  status:"soon"},
+  {cat:"common", name:"Loki's Guise",       disc:"Protean",     status:"ready", file:"loki-guise-tree.html"},
+  {cat:"common", name:"Athena's Mirror",    disc:"Auspex",      status:"soon"},
+  {cat:"common", name:"Hades' Cloak",       disc:"Obfuscate",   status:"soon"},
+  {cat:"common", name:"Baba Yaga's Fog",    disc:"Chimerstry & Nightmare", status:"soon"},
+  {cat:"common", name:"Jupiter's Will",     disc:"Dominate",    status:"soon"},
+  {cat:"common", name:"Circe's Call",       disc:"Animalism",   status:"soon"},
+
+  // ---- Blood Magic ----
+  {cat:"blood", name:"Ars Sanguinis", disc:"The Art of Blood",   status:"soon"},
+  {cat:"blood", name:"Ars Spina",     disc:"The Art of Thorns",  status:"soon"},
+  {cat:"blood", name:"Ars Mortis",    disc:"The Art of Death",   status:"soon"},
+  {cat:"blood", name:"Ars Infernum",  disc:"The Infernal Art",   status:"soon"},
+
+  // ---- Experimental ----
+  {cat:"exp", name:"Morrigan",    disc:"Siris' Gambit",   status:"soon"},
+  {cat:"exp", name:"Irkalla",     disc:"Oath of Ashes",   status:"soon"},
+  {cat:"exp", name:"Scholomance", disc:"The Dark School", status:"soon"},
+];
+/* ==================== end of editable list ==================== */
+
+const main=document.getElementById('main');
+const romans=["I","II","III","IV","V","VI","VII","VIII"];
+
+CATEGORIES.forEach((cat,ci)=>{
+  const items=GIFTS.filter(g=>g.cat===cat.key);
+  if(!items.length) return;
+  const sec=document.createElement('section');
+  sec.className='movement'; sec.dataset.cat=cat.key;
+  sec.innerHTML=`<h2><span class="idx">${romans[ci]||ci+1}</span>${cat.title}</h2><p class="sub">${cat.sub}</p>`;
+  const grid=document.createElement('div'); grid.className='grid';
+  items.forEach(g=>{
+    const ready=g.status==='ready'&&g.file;
+    const tag=g.name+' '+g.disc;
+    const inner=
+      `<span class="accent"></span>`+
+      `<div class="nm">${g.name}</div>`+
+      `<div class="disc">${g.disc}</div>`+
+      `<div class="foot"><span class="seal"></span>`+
+        (ready?`open tree<span class="go">→</span>`:`coming soon`)+
+      `</div>`;
+    let el;
+    if(ready){ el=document.createElement('a'); el.href=g.file; }
+    else { el=document.createElement('div'); }
+    el.className='gift '+(ready?'ready':'soon');
+    el.dataset.search=tag.toLowerCase();
+    el.innerHTML=inner;
+    grid.appendChild(el);
+  });
+  sec.appendChild(grid);
+  main.appendChild(sec);
+});
+
+// progress
+const total=GIFTS.length, done=GIFTS.filter(g=>g.status==='ready'&&g.file).length;
+document.getElementById('total').textContent=total;
+document.getElementById('done').textContent=done;
+
+// search
+const q=document.getElementById('q'), empty=document.getElementById('empty');
+q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  let any=false;
+  document.querySelectorAll('.gift').forEach(el=>{
+    const hit=!v||el.dataset.search.includes(v);
+    el.classList.toggle('hide',!hit); if(hit) any=true;
+  });
+  document.querySelectorAll('.movement').forEach(sec=>{
+    const visible=[...sec.querySelectorAll('.gift')].some(el=>!el.classList.contains('hide'));
+    sec.style.display=visible?'':'none';
+  });
+  empty.style.display=any?'none':'block';
+});
+</script>
+</body>
+</html>
