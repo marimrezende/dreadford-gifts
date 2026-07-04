@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ekimmu's Dirge — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Ekimmu<span class="g">'</span>s Dirge <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Orlok · House of the Bat</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"enhanced_hearing", name:"Enhanced Hearing", rank:"neophyte", xp:1, cx:1326, cy:88,
+    tag:"Gain an improved sense of hearing.",
+    stats:{},
+    desc:["The vampire gains an improved sense of hearing, picking up distant conversations, subtle movements, or hidden sounds others might miss.","This grants bonuses to hearing-based perception checks, and a bonus to effective Blood Potency when accounting for the distance at which you can hear heartbeats, equal to your Chosen Skill (max 5)."]},
+  {id:"ears_of_the_bat", name:"Ears of the Bat", rank:"neophyte", xp:2, cx:1324, cy:369,
+    tag:"Perceive your surroundings through echolocation.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Sharpens the Orlok's senses, letting them perceive their surroundings through echolocation. In darkness or when visibility is impaired, the vampire gains keen awareness \u2014 detecting movement, obstacles, and subtle changes in air pressure through sound.","The vampire can \"see\" through sound, mapping surroundings by emitting subtle clicks or using ambient noise. They detect objects, movement, and creatures even in total darkness or fog, within a range set by their Chosen Skill, unaffected by blindness. He is fully aware of his surroundings and cannot be surprised by what he perceives.","Echolocation range by Chosen Skill: 1 = 5 m \u00b7 2 = 10 m \u00b7 3 = 15 m \u00b7 4 = 20 m \u00b7 5 = 50 m \u00b7 6 = 100 m \u00b7 7 = 250 m \u00b7 8 = 500 m \u00b7 9 = 1 km."]},
+  {id:"pinpoint_weakness", name:"Pinpoint Weakness", rank:"neophyte", xp:1, cx:778, cy:369,
+    tag:"Detect structural weaknesses in objects.",
+    stats:{"Cost":"1 Blood Point (+1 to activate reflexively)", "Dice":"None", "Action":"Instant", "Duration":"Instant (knowledge may remain)"},
+    desc:["Use your sonar to detect structural weaknesses in objects. Spend a Blood Point and use your turn focusing on an object, studying its integrity.","At the end you learn a specific spot (\u22123 to hit) where the object's Structure counts as lowered by 2\u00d7 your Chosen Skill rank."]},
+  {id:"wall_crawling", name:"Wall Crawling", rank:"neophyte", xp:2, cx:1870, cy:369,
+    tag:"Move up and along any solid surface freely.",
+    stats:{},
+    desc:["The vampire can move up and along any solid surface as easily as walking, so long as they use all four limbs to climb.","Whether scaling sheer cliffs or crawling upside-down across ceilings, they move freely and silently, making it hard for enemies to detect their approach."]},
+  {id:"natural_bloodsucker", name:"Natural Bloodsucker", rank:"scion", xp:2, cx:2415, cy:369,
+    tag:"Drink more blood than your rank allows.",
+    stats:{},
+    desc:["Derived from the Bat Nephilim, Orloks are natural predators of blood, even more than other vampires.","You may use the feed maneuver to drink more blood than your Ichor Hierarchy normally allows \u2014 additional Blood Points per turn equal to half your Chosen Skill rank (rounded up)."]},
+  {id:"defense_focus", name:"Defense Focus", rank:"neophyte", xp:2, cx:778, cy:651,
+    tag:"Use your echolocation to better your defense.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["During Echolocation you can reflexively spend a Blood Point to add dots of your Chosen Skill to your Defense for a turn.","This bonus only applies if you have your Defense available against that attack."]},
+  {id:"white_noise", name:"White Noise", rank:"neophyte", xp:1, cx:1324, cy:651,
+    tag:"Emit disrupting low frequency waves.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Composure + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["The Orlok emits disrupting low-frequency waves at a target. It causes no harm but confuses them.","Make an Ekimmu attack resisted by Composure + Blood Potency. On a success, the target can't benefit from 10-again for a number of turns equal to net successes, and loses dice to all skill rolls equal to your Chosen Skill rank (max 5)."]},
+  {id:"high_freq_comm", name:"High-Frequency Communication", rank:"neophyte", xp:1, cx:1872, cy:651,
+    tag:"Speak at high frequencies.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["The Orlok emits sound at frequencies too high for human ears, communicating secretly with other Nosferatu who possess Ekimmu's Dirge.","This communication travels through walls and obstacles but has a limited range (Blood Potency \u00d7 10 meters), letting the Nosferatu coordinate with allies in complete silence."]},
+  {id:"gorging_bite", name:"Gorging Bite", rank:"elder", xp:3, cx:2415, cy:651,
+    tag:"Feed the instant you bite.",
+    stats:{},
+    desc:["The Orlok can now make the feed maneuver the moment he first bites the victim, instead of gaining the traditional single Blood Point."]},
+  {id:"piercing_radar", name:"Piercing Radar", rank:"neophyte", xp:2, cx:778, cy:933,
+    tag:"Allow your radar to pierce supernatural effects.",
+    stats:{"Cost":"None (upgrades Ears of the Bat)"},
+    desc:["Gives your radar the ability to contest a Clash of Wills against supernatural powers such as Hades' Cloak and Baba Yaga's Fog.","This power has no cost \u2014 it simply upgrades your Ears of the Bat."]},
+  {id:"shriek_of_the_bat", name:"The Shriek of the Bat", rank:"neophyte", xp:1, cx:1324, cy:933,
+    tag:"Use sound to induce a fear frenzy at foes.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge", "Action":"Instant", "Duration":"Instant"},
+    desc:["A potent, precise manipulation of sound that unleashes fear on foes.","You can cause a fear frenzy in vampires. The target resists with Composure + Blood Potency; if he fails he must start rolling against a Fear Frenzy with a penalty equal to half your Chosen Skill rank."]},
+  {id:"mimicry", name:"Mimicry", rank:"neophyte", xp:1, cx:1872, cy:933,
+    tag:"Imitate, or project sound from a distance.",
+    stats:{},
+    desc:["By focusing their voice or ambient sounds, the Orlok can project sound from a distance, making their voice seem to come from anywhere within echolocation range \u2014 disorienting enemies or luring targets into traps.","They can also mimic any sound they've heard: perfect replications of voices, alarms, footsteps, or breaking glass, sowing confusion and misdirection for stealth or ambushes."]},
+  {id:"reflexive_disruption", name:"Reflexive Disruption", rank:"scion", xp:1, cx:234, cy:1215,
+    tag:"Counter a power as it's being cast.",
+    stats:{},
+    desc:["Spend your instant action as a Dodge to roll against another character trying to activate a supernatural power \u2014 effectively using Ekimmu's Scream outside of your turn to counter the activation.","You must know the power is being activated. If you win, the power is not activated."]},
+  {id:"ekimmus_scream", name:"Ekimmu's Scream", rank:"scion", xp:3, cx:780, cy:1215,
+    tag:"Disrupt and cancel other supernatural powers.",
+    stats:{"Cost":"3 BP vs Neophyte \u00b7 4 Scion \u00b7 5 Elder \u00b7 7 Ascendant \u00b7 10 Ancient Evil"},
+    desc:["You can disrupt other supernatural powers. Target the effect of the power, or the creature under its effect.","Make a Clash of Wills; if you win, the power is canceled. If one clashing power is more than one rank above the other, it wins automatically. This attempt cannot be retried against the same power.","Cost scales with the targeted power's rank (see above)."]},
+  {id:"concussive_blast", name:"Concussive Blast", rank:"neophyte", xp:2, cx:1324, cy:1215,
+    tag:"Use sound to make a direct attack against a target.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Defense", "Action":"Instant", "Duration":"Instant"},
+    desc:["By emitting a powerful sonic scream, the Orlok releases a concussive blast of sound. This deafening roar strikes the target for bashing damage, possibly knocking them prone (if damage exceeds the target's Strength).","These offensive powers have a weapon rating equal to half your Chosen Skill ranks (rounded up). Armor protects normally."]},
+  {id:"sonic_shove", name:"Sonic Shove", rank:"neophyte", xp:1, cx:1870, cy:1215,
+    tag:"Make your attack send enemies flying.",
+    stats:{"Cost":"+1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"1 Concussive Blast"},
+    desc:["For an additional Blood Point, your Concussive Blast can send opponents flying a number of meters equal to your Chosen Skill rank, if the damage is larger than their Strength."]},
+  {id:"reverberate", name:"Reverberate", rank:"neophyte", xp:1, cx:2415, cy:1215,
+    tag:"Make your Sonic Attacks rebound on solid surfaces.",
+    stats:{"Cost":"+1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"1 Sonic Attack"},
+    desc:["The Orlok can make his Sonic Attacks rebound off solid surfaces, hitting someone not in his direct line of sight (for example, someone he senses with sonar in another room).","There must still be a path to the target and the target must be in range, but direct line of sight is no longer necessary."]},
+  {id:"not_so_special", name:"Not So Special", rank:"elder", xp:3, cx:780, cy:1497,
+    tag:"Blunt a victim's signature House Gift.",
+    stats:{"Cost":"3 Blood Points, 1 Willpower", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Composure + Blood Potency", "Action":"Instant / Contested", "Duration":"Scene"},
+    desc:["The vampire denies his vampire victim her trade secrets, temporarily blunting her signature Gift long enough to strike. This works only on the subject's natural House Gift \u2014 not on non-House Disciplines. He must touch his victim (he may try to touch as part of activation).","If successful, the victim suffers the effect of Ekimmu's Scream every time she tries to activate any power from her House Gift \u2014 a Clash of Wills against your Ekimmu's Dirge on each activation. If a Gift effect is already active, it also suffers a Clash of Wills."]},
+  {id:"thiefs_denial", name:"The Thief's Denial", rank:"ancevil", xp:4, cx:780, cy:1779,
+    tag:"Sever a target from all supernatural power.",
+    stats:{"Cost":"15 Blood Points, 1 Willpower", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Composure + Blood Potency", "Action":"Instant", "Duration":"Until sunrise"},
+    desc:["Inflict a terrible condition that makes the victim lose access to all supernatural powers.","While under this condition, the target counts as if he has no Gift at all."]},
+  {id:"banshees_wail", name:"Banshee's Wail", rank:"neophyte", xp:2, cx:1324, cy:1497,
+    tag:"Unleash a devastating and lethal sonic scream.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Stamina + Blood Potency", "Action":"Instant", "Duration":"Instant"},
+    desc:["The Orlok's mastery of sound reaches deadly proportions \u2014 a scream so powerful it tears through flesh and shatters objects.","Against living or unliving targets, the scream inflicts Lethal damage equal to your Chosen Skill. Against objects, it can shatter glass, dent metal, or crack stone depending on durability. If you deal more damage than the target's Stamina, he is deafened for Chosen Skill turns."]},
+  {id:"constant_noise", name:"Constant Noise", rank:"scion", xp:3, cx:1870, cy:1497,
+    tag:"Activate White Noise reflexively.",
+    stats:{"Cost":"+1 Blood Point"},
+    desc:["You may now reflexively activate the White Noise power by spending an additional Blood Point."]},
+  {id:"buzzling_aura", name:"Buzzling Aura", rank:"ascendant", xp:4, cx:2415, cy:1497,
+    tag:"Turn your sonic powers into area effects.",
+    stats:{"Cost":"2 Blood Points + 1 per target", "Dice":"As per upgraded power", "Action":"Instant", "Duration":"As per upgraded power"},
+    desc:["Spend 2 additional Blood Points, plus 1 per additional target, when activating any of this tree's powers to make them affect an area.","Applies to White Noise, The Shriek of the Bat, Concussive Blast, and Banshee's Wail."]},
+  {id:"death_wail", name:"Death Wail", rank:"scion", xp:3, cx:1323, cy:1779,
+    tag:"A sound that makes mortals faint.",
+    stats:{"Cost":"3 Blood Points", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Resolve + Composure", "Action":"Instant", "Duration":"Scene"},
+    desc:["The Orlok produces a terrifying sound that makes mortals faint. Mortals resist with Resolve + Composure or are knocked unconscious until the end of the scene.","You can affect a number of mortals up to your Chosen Skill rank."]},
+  {id:"attuned_scream", name:"Attuned Scream", rank:"elder", xp:3, cx:1872, cy:1779,
+    tag:"Attune your scream to shatter one material.",
+    stats:{"Cost":"4 Blood Points", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Stamina + Blood Potency", "Action":"Instant", "Duration":"Instant"},
+    desc:["The Nosferatu chooses a specific type of material and attunes the frequency of his scream to it. On his action, only that material is destroyed in his immediate vicinity (no effect on living beings, but it may target equipment they carry).","Lone objects get no save; wielders get a save for their equipment."]},
+  {id:"destructive_dirge", name:"Destructive Dirge", rank:"elder", xp:3, cx:1323, cy:2058,
+    tag:"Trigger a localized earthquake.",
+    stats:{"Cost":"6 Blood Points", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge", "Action":"Instant", "Duration":"Instant"},
+    desc:["Create a localized earthquake by emitting vibrations that disrupt structures, or focus the vibrations on a single material for devastating effects.","This scream destroys objects within a square whose side is 2\u00d7 your Chosen Skill rank in meters. It may provoke collapses; creatures standing on an affected building suffer the Urban Collapse Tilt.","Urban Collapse Tilt: moving more than half Speed in a turn requires a reflexive Dexterity + Athletics roll at \u2212half Chosen Skill, or the character takes half-Chosen-Skill bashing and the Knocked Down Tilt. A character may instead take that penalty on attack rolls to impose Knocked Down on a victim. Any dramatic failure causes full collapse: Chosen Skill bashing and the character is trapped under rubble (Strength + Stamina at \u2212Chosen Skill to escape; each failure adds half-Chosen-Skill bashing; allies can assist to remove the penalty 1-for-1)."]},
+  {id:"silent_armageddon", name:"Silent Armageddon", rank:"ascendant", xp:4, cx:1872, cy:2058,
+    tag:"A silent zone that annihilates all matter.",
+    stats:{"Cost":"9 Blood Points", "Dice":"Wits + Chosen Skill + Ekimmu's Dirge vs Stamina + Blood Potency", "Duration":"Scene"},
+    desc:["Unleash an intense, inaudible soundwave that devastates everything it touches while leaving no trace of sound. It creates a dissonant zone of utter silence where vibrations destroy all matter and life.","Each use creates an area with a radius of your Blood Potency in meters around you, lasting the scene. Every creature and object inside suffers aggravated damage equal to your Chosen Skill each round, and all sound ceases completely.","To keep this power active, the Nosferatu foregoes all other uses of Ekimmu's Dirge."]},
+];
+
+const EDGES = [
+  ["enhanced_hearing","ears_of_the_bat"],
+  ["ears_of_the_bat","pinpoint_weakness"],
+  ["ears_of_the_bat","wall_crawling"],
+  ["ears_of_the_bat","white_noise"],
+  ["wall_crawling","natural_bloodsucker"],
+  ["natural_bloodsucker","gorging_bite"],
+  ["pinpoint_weakness","defense_focus"],
+  ["defense_focus","piercing_radar"],
+  ["piercing_radar","ekimmus_scream"],
+  ["ekimmus_scream","reflexive_disruption"],
+  ["ekimmus_scream","not_so_special"],
+  ["not_so_special","thiefs_denial"],
+  ["white_noise","high_freq_comm"],
+  ["white_noise","shriek_of_the_bat"],
+  ["shriek_of_the_bat","mimicry"],
+  ["shriek_of_the_bat","concussive_blast"],
+  ["concussive_blast","sonic_shove"],
+  ["sonic_shove","reverberate"],
+  ["concussive_blast","banshees_wail"],
+  ["banshees_wail","constant_noise"],
+  ["constant_noise","buzzling_aura"],
+  ["banshees_wail","death_wail"],
+  ["death_wail","attuned_scream"],
+  ["death_wail","destructive_dirge"],
+  ["destructive_dirge","silent_armageddon"],
+  ["attuned_scream","silent_armageddon"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.565;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
