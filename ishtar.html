@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Ishtar's Whisper — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Ishtar<span class="g">'</span>s Whisper <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Strix · House of the Eagle</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"presence_bonus", name:"Presence Bonus", rank:"neophyte", xp:2, cx:3559, cy:132,
+    tag:"Increase your presence rolls with your Chosen Skill rank.",
+    stats:{"Action":"Passive"},
+    desc:["Add your Chosen Skill to all Presence-based rolls involving conversation or interpersonal engagement.","This bonus does not apply to supernatural powers, to intimidation, or to social rolls made after a violent physical action."]},
+  {id:"magnetic_aura", name:"Magnetic Aura", rank:"neophyte", xp:1, cx:2758, cy:744, pending:true,
+    tag:"A supernatural aura that makes you the center of attention.",
+    stats:{},
+    desc:["The base aura that draws all eyes to you. This gift is still a draft in the source document \u2014 full text pending."]},
+  {id:"sirens_call", name:"Siren's Call", rank:"neophyte", xp:2, cx:3559, cy:744,
+    tag:"Call upon your blood to aid you in social maneuvers.",
+    stats:{"Cost":"1 Blood Point", "Action":"Reflexive"},
+    desc:["Reflexively spend 1 Blood Point to gain automatic successes equal to your Chosen Skill on social rolls involving Presence, or on resisting others' use of Presence.","This bonus does not apply to supernatural powers, to intimidation, or to social rolls after a violent physical action."]},
+  {id:"haunting_seduction", name:"Haunting Seduction", rank:"neophyte", xp:1, cx:4362, cy:744, pending:true,
+    tag:"Make the victim obsess about you for a couple of nights.",
+    stats:{},
+    desc:["Leave a victim obsessing over you for a couple of nights. Still a draft in the source \u2014 full text pending."]},
+  {id:"charm_enchantress", name:"Charm of the Enchantress", rank:"neophyte", xp:2, cx:1149, cy:1360,
+    tag:"You may magically charm a target.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Presence + Chosen Skill + Ishtar's Whisper", "Action":"Instant", "Duration":"Until end of night, or until broken"},
+    desc:["Impose the Charmed Condition on up to your Chosen Skill in targets, who must be close to one another and resist with Composure + Blood Potency. It does not work against hostile targets.","The charm breaks if you or your allies try to harm the target or someone close to them, or if the target makes a significant sacrifice or takes a significant risk for you. If it ends naturally, the victim never knows they were charmed."]},
+  {id:"inspire_courage", name:"Inspire Courage", rank:"neophyte", xp:1, cx:1953, cy:1359,
+    tag:"An aura that grants the Inspired condition to allies.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["Bathe your allies in an aura of energetic warmth and reassurance. Any ally who can see you when you activate this gains the Inspired condition, which fades at scene's end if unused.","This power can only affect a given character once per night."]},
+  {id:"stalwart_heart", name:"Stalwart Heart", rank:"neophyte", xp:1, cx:2758, cy:1360,
+    tag:"Protect yourself against other Ishtar's Whisper uses.",
+    stats:{"Cost":"0 Blood Points", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["Turn Ishtar's Whisper inward to maintain your own emotional integrity. Attempts to use Ishtar's Whisper on you are hindered by your own mastery: on a contested roll you add your Chosen Skill to resist.","Stalwart Heart protects even when there's no active roll."]},
+  {id:"kingmaker", name:"Kingmaker", rank:"neophyte", xp:1, cx:3559, cy:1360,
+    tag:"Grant effects or support another in social situations.",
+    stats:{"Cost":"1 Blood Point"},
+    desc:["Support another with your Ishtar's Whisper: grant them the extra Presence dice you would gain, or direct the Charmed conditions you apply onto a different person instead of yourself."]},
+  {id:"one_that_got_away", name:"The One that got Away", rank:"neophyte", xp:1, cx:4360, cy:1359, pending:true,
+    tag:"Make someone addicted to helping you.",
+    stats:{},
+    desc:["The tree labels this \"make someone addicted to helping you\"; the source text describes a variant of Call Me Maybe that grants a temporary dot of Influence or Resources. These two need reconciling \u2014 full text pending."]},
+  {id:"enhance_sensation", name:"Enhance Sensation", rank:"neophyte", xp:1, cx:5163, cy:1359,
+    tag:"Overwhelm a target with a chosen emotion.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Presence + Chosen Skill + Ishtar's Whisper vs Composure + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Affect the physical, emotional, and psychic awareness of a target (vampire or mortal), imposing one condition for the scene (two on a critical success):","Ecstatic \u2014 the target takes your Chosen Skill as a penalty to all perception checks and loses your Chosen Skill in Defense. Heightened Pain \u2014 if the target has even a single point of damage, reduce their dice pools by your Chosen Skill. (Those who can invert pain into motivation instead have their pain-buffs heightened.)"]},
+  {id:"call_me_maybe", name:"Call Me Maybe", rank:"neophyte", xp:1, cx:5964, cy:1359,
+    tag:"Create temporary dots of Herd or Network.",
+    stats:{"Cost":"1 Willpower", "Dice":"Presence + Chosen Skill + Ishtar's Whisper", "Action":"Instant"},
+    desc:["You must be in a social situation with Good, Excellent, or Perfect Impressions with mortals in attendance. Plant the seed for a later interlude.","Gain one temporary dot of the Herd or Network Merit per Chosen Skill dot (this can exceed the normal five-dot cap). Each dot lasts until used once, or until the end of the chapter. Usable once per episode; the dots can't be used in the same or the following scene \u2014 they must be used later in the story, and you may only hold dots from one instance at a time."]},
+  {id:"throne_enchantment", name:"Throne of Enchantment", rank:"scion", xp:2, cx:348, cy:1975,
+    tag:"You may upgrade your Charmed to the Enthralled Condition.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Presence + Chosen Skill + Ishtar's Whisper vs Composure + Blood Potency", "Action":"Instant", "Duration":"Until end of night, or until broken by a severe threat"},
+    desc:["Impose the Enthralled Condition on a target.","Each time the enemy spends Willpower to resist the condition, they take your Chosen Skill as bashing psychic damage, which cannot be healed while the condition persists (supernatural healing may force a Clash of Wills)."]},
+  {id:"ironclad_command", name:"Ironclad Command", rank:"scion", xp:3, cx:1149, cy:1975,
+    tag:"Make it more difficult to resist your Ishtar's powers.",
+    stats:{},
+    desc:["When using another power of this tree, spend 1 additional Ichor to impose a penalty on the target's resistance roll equal to your Chosen Skill rank."]},
+  {id:"eagles_cry", name:"Eagle's Cry", rank:"neophyte", xp:2, cx:1953, cy:1977,
+    tag:"Inspire your targets to even more prodigious lengths.",
+    stats:{"Cost":"1 Blood Point (+1 to activate reflexively)", "Action":"Instant", "Duration":"Scene"},
+    desc:["An upgraded inspiration that affects up to your Chosen Skill in targets for the whole scene. Any fear power must win a Clash of Wills against your Ishtar's Whisper to affect them.","At the start of your turn you may grant the Inspired condition to an affected ally (the same ally can benefit from this no more than half your Chosen Skill times per night). Affected allies can ignore the first point of bashing or lethal damage from any successful attack."]},
+  {id:"ripples_still_water", name:"Ripples in Still Water", rank:"neophyte", xp:1, cx:2758, cy:1977,
+    tag:"Become aware of supernatural emotion manipulation on you.",
+    stats:{"Cost":"2 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Turn your mental gifts inward to ward off effects that would command you or alter your emotions.","Until the end of the scene, any mental power must win a Clash of Wills against your Ishtar's Whisper to affect you \u2014 and you become aware of such attempts."]},
+  {id:"dream_drinking", name:"Dream Drinking", rank:"neophyte", xp:1, cx:4360, cy:1975,
+    tag:"Drain the subject's dream, and experience it.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Presence + Chosen Skill + Ishtar's Whisper vs Composure + Blood Potency", "Action":"Contested"},
+    desc:["Use the subconscious side of Ishtar's Whisper to plague a victim's sleep, draining and experiencing their dream.","On success, the next time the victim sleeps their frightening, arousing dreams inflict the Spooked and Swooning Conditions (you choose the subject of each). The victim sheds each condition individually."]},
+  {id:"instill_emotion_object", name:"Instill Emotion in an Object", rank:"neophyte", xp:1, cx:5163, cy:1974,
+    tag:"Imbue an object with an emotion.",
+    stats:{"Duration":"1 Night"},
+    desc:["Imbue an object of Size 5 or smaller \u2014 a weapon, clothing, sculpture, or painting \u2014 with emotional resonance for a night. Choose one effect:","Equipment Bonus: grant half your Chosen Skill (rounded) as an equipment bonus to social rolls involving the object. Condition Propagation: the object can propagate a chosen mundane condition (Shaken, Distracted, Inspired, Spooked, Swooned, or Wanton) to whoever interacts with it, via a Presence + Chosen Skill + Ishtar's Whisper roll. The object holds charges equal to your Chosen Skill before you must spend an action and a blood point to recharge it."]},
+  {id:"keeper_of_heart", name:"Keeper of the Heart", rank:"scion", xp:3, cx:5964, cy:1975,
+    tag:"Sustain the emotional conditions you place on others.",
+    stats:{"Cost":"1 / 2 / 4 / 6 Blood Points by condition rank", "Action":"Reflexive"},
+    desc:["Prolong the emotional effects of your influence. When a supernatural condition you imposed (Charmed, Enthralled, and so on) is about to end, spend Blood Points to renew it as though just applied.","Cost by the condition's source rank: 1 BP for Bloodling/Neophyte, 2 for Scion, 4 for Elder, 6 for Ascendant. For conditions you can apply with several powers, you may use the lowest-ranked power's cost."]},
+  {id:"celebrity", name:"Celebrity", rank:"neophyte", xp:1, cx:6765, cy:1974,
+    tag:"Create a temporary dot of Renown, Status or Influence.",
+    stats:{},
+    desc:["Expands Call Me Maybe: have a fan talk about you, gaining new merit options. You can now add a temporary dot of Renown or Status instead of Herd or Network."]},
+  {id:"empress_desire", name:"Empress of Desire", rank:"scion", xp:3, cx:348, cy:2590,
+    tag:"Make victims unwilling to attack you, and feed from their resistance.",
+    stats:{"Cost":"3 Blood Points, 1 Willpower", "Action":"Instant", "Duration":"Scene"},
+    desc:["Activate a supernatural aura that makes you the center of attention. All perception rolls from those around you to notice anything but you suffer a penalty equal to your Chosen Skill.","Anyone affected must roll Composure + Blood Potency against your Presence + Chosen Skill + Ishtar's Whisper each turn to take any offensive action against you. Those who wish to ignore the compulsion may spend 1 Willpower each turn \u2014 and you receive every Willpower point spent this way."]},
+  {id:"honeyed_leash", name:"Honeyed Leash", rank:"scion", xp:3, cx:1149, cy:2590,
+    tag:"Cancel the benefit of willpower spent to resist you.",
+    stats:{"Cost":"2 Blood Points", "Action":"Reflexive"},
+    desc:["When someone spends a Willpower point to resist the effects of your powers, activate this to ignore the benefits they would gain from that spent Willpower."]},
+  {id:"beautiful_deadly", name:"Beautiful but Deadly", rank:"neophyte", xp:2, cx:1953, cy:2592,
+    tag:"Disrupt violent actions with your magnificence.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Presence + Chosen Skill + Ishtar's Whisper vs Composure + Blood Potency", "Action":"Reflexive", "Duration":"Net successes"},
+    desc:["Exert your glorious mien over an opponent, disrupting his violent intent through sheer magnificence.","When an enemy targets you, make a contested Ishtar roll. For a number of turns equal to your successes, the target gains the Awestruck condition, losing your Chosen Skill on rolls against you. He may shed this condition by spending an instant action."]},
+  {id:"rock_is_dead", name:"Rock is Dead", rank:"neophyte", xp:2, cx:2758, cy:2592,
+    tag:"Dull the use of mental disciplines around you.",
+    stats:{"Cost":"1 Willpower (1 Ichor to activate reflexively)", "Action":"Instant", "Duration":"Scene"},
+    desc:["Use your own gift to dull other personalities in the area, becoming the center of attention so completely you distract from other powerful presences.","Other characters suffer your Chosen Skill as a dice-pool penalty to any use of mental Disciplines. If you're already under a Condition caused by their Discipline, they become immune to this while that Condition persists. A character can only be under one Rock is Dead penalty at a time."]},
+  {id:"corruption", name:"Corruption", rank:"neophyte", xp:2, cx:4360, cy:2592, pending:true,
+    tag:"Corruption.",
+    stats:{},
+    desc:["This gift is still a draft in the source document \u2014 full text pending."]},
+  {id:"spark_of_rage", name:"Spark of Rage", rank:"scion", xp:3, cx:5163, cy:2590, pending:true,
+    tag:"Spark of Rage.",
+    stats:{},
+    desc:["This gift is still a draft in the source document \u2014 full text pending."]},
+  {id:"infuse_emotion", name:"Infuse Emotion in Something", rank:"neophyte", xp:2, cx:5961, cy:2592, pending:true,
+    tag:"Infuse an emotion into something.",
+    stats:{},
+    desc:["The source lists this as a draft branch (Fingers on a Dead Pulse, Codependency, and related powers). Full text pending."]},
+  {id:"summoning", name:"Summoning", rank:"elder", xp:3, cx:6765, cy:2590,
+    tag:"Call someone you know to your side from anywhere.",
+    stats:{"Cost":"3 Blood Points", "Requirement":"Used Awe on the victim within the last year", "Dice":"Presence + Chosen Skill + Ishtar's Whisper vs Composure + Blood Potency", "Action":"Contested", "Duration":"1 night"},
+    desc:["Reach out to someone you know, anywhere in the world, and call her to your side. She feels an emotional compulsion (not a supernatural command) to travel to you by the most direct means \u2014 emptying bank accounts or stealing to make the trip \u2014 though she won't put herself in unnecessary danger, and a vampire will still shelter for the day.","You may impress on her the need to bring something along. Success lasts the rest of the night; an exceptional success lasts through the next day and night. Range and how the victim feels about you apply modifiers (from +1 if you know exactly where she is, down to \u22125 if she's on the other side of the world)."]},
+  {id:"give_and_take", name:"The Give-and-Take", rank:"scion", xp:3, cx:7647, cy:2590, pending:true,
+    tag:"The Give-and-Take.",
+    stats:{},
+    desc:["This gift is still a draft in the source document \u2014 full text pending."]},
+  {id:"cult_personality", name:"Cult of Personality", rank:"elder", xp:3, cx:348, cy:3205,
+    tag:"Charm additional targets at once.",
+    stats:{},
+    desc:["Spend multiple Ichor while using Charm of the Enchantress to add extra targets equal to your Chosen Skill for each Ichor spent.","You may also spend 1 Willpower and 2 extra Ichor to make Throne of Enchantment affect up to your Chosen Skill in targets instead of just one."]},
+  {id:"battle_meditation", name:"Battle Meditation", rank:"scion", xp:2, cx:1149, cy:3205,
+    tag:"Buff your auras, making them affect more targets.",
+    stats:{"Cost":"1 Ichor", "Action":"Reflexive"},
+    desc:["Activate this as you activate a buff aura to make it affect twice as many targets."]},
+  {id:"rapturing_banner", name:"Rapturing Banner", rank:"scion", xp:2, cx:1953, cy:3205,
+    tag:"A banner that lets allies spend willpower freely and strike as one.",
+    stats:{"Cost":"2 Blood Points (+1 to activate reflexively)", "Action":"Instant", "Duration":"Scene"},
+    desc:["An upgraded banner affecting up to your Chosen Skill in targets for the scene. You may let targets spend one Willpower point per turn without actually losing it.","When you perform a physical action against an enemy, allies under this power gain a bonus equal to your Chosen Skill on their next turn on any actions against that same enemy."]},
+  {id:"mastery_9again", name:"Mastery (9-again)", rank:"elder", xp:2, cx:2760, cy:3205, pending:true,
+    tag:"(description pending)",
+    stats:{},
+    desc:["Not detailed in the source yet \u2014 most likely grants the 9-again quality to Ishtar's Whisper rolls."]},
+  {id:"psychic_vampirism", name:"Psychic Vampirism", rank:"scion", xp:3, cx:4362, cy:3205,
+    tag:"Siphon a target's willpower for yourself.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Presence + Chosen Skill + Ishtar's Whisper vs Composure + Blood Potency", "Action":"Instant"},
+    desc:["On success, the target loses half your Chosen Skill in Willpower, which you gain. Alternatively, you may take it as Vitae, feeding on their emotional energy directly.","You can only gain Willpower from this power once per night."]},
+  {id:"aura_dominion", name:"Aura of Dominion", rank:"elder", xp:2, cx:5163, cy:3205,
+    tag:"Flood an area with an emotion, or drain a single will.",
+    stats:{"Cost":"6 Blood Points (aura); 2 Blood Points (concentrated attack)", "Action":"Instant", "Duration":"Until sunrise"},
+    desc:["Project a powerful aura over an area, infusing it with a chosen emotion. All within it are compelled to act accordingly unless they resist with Composure + Blood Potency (then spend 1 Willpower per turn to keep resisting).","You may concentrate the aura on a single target as an attack (Presence + Chosen Skill + Ishtar's Whisper vs Composure + Blood Potency): each success removes 1 Willpower and grants you 2 Blood Points per Willpower drained. Targets reduced to 0 Willpower become emotionally numb until they recover. Aggressive actions by you or your allies break the aura unless the projected emotion is aggression."]},
+  {id:"permanent_infuse", name:"Permanent Infuse Emotion in Something", rank:"scion", xp:3, cx:5961, cy:3205, pending:true,
+    tag:"Permanently infuse emotion into something.",
+    stats:{},
+    desc:["This gift is still a draft in the source document \u2014 full text pending."]},
+  {id:"internet_famous", name:"Internet Famous", rank:"elder", xp:2, cx:6765, cy:3205,
+    tag:"Summon anyone who follows you on social media.",
+    stats:{},
+    desc:["Affect all persons following you on social media with the Summon effect. (Anarchs Unbound, p. 106.)"]},
+  {id:"veil_of_wrath", name:"Veil of Wrath", rank:"ascendant", xp:4, cx:1953, cy:3820,
+    tag:"Layer emotional manipulation onto a physical attack.",
+    stats:{"Cost":"1 Willpower, 1 Blood Point (plus the combined power's cost)", "Action":"Reflexive"},
+    desc:["Combine a physical attack with a lesser power of Ishtar's Whisper (Bloodling or Scion rank) in the same action, layering emotional manipulation onto your assault. You may affect different targets with each.","Source note: the written text lists this gift as Scion rank; the tree colors it as Ascendant."]},
+  {id:"mastery_8again", name:"Mastery (8-again)", rank:"ascendant", xp:3, cx:2760, cy:3808, pending:true,
+    tag:"(description pending)",
+    stats:{},
+    desc:["Not detailed in the source yet \u2014 most likely grants the 8-again quality to Ishtar's Whisper rolls."]},
+  {id:"seed_corruption", name:"Seed of Corruption", rank:"elder", xp:3, cx:4362, cy:3822, pending:true,
+    tag:"Seed of Corruption.",
+    stats:{},
+    desc:["This gift is still a draft in the source document \u2014 full text pending."]},
+  {id:"harvest_of_will", name:"Harvest of Will", rank:"ascendant", xp:4, cx:5163, cy:3820,
+    tag:"Convert siphoned willpower into blood.",
+    stats:{},
+    desc:["You not only siphon Willpower but convert the excess into Blood Points, and can cycle destabilizing emotional conditions on those in your magnetic aura.","Any Willpower you recover beyond your maximum converts to Blood Points, at 3 Blood Points per excess Willpower (this counts as vampiric blood)."]},
+  {id:"instill_powers", name:"Instill Ishtar's Powers in something", rank:"elder", xp:4, cx:5961, cy:3822, pending:true,
+    tag:"Instill Ishtar's powers into an object.",
+    stats:{},
+    desc:["This gift is still a draft in the source document \u2014 full text pending."]},
+  {id:"mastery_rote", name:"Mastery (Rote)", rank:"ancevil", xp:4, cx:2760, cy:4423, pending:true,
+    tag:"(description pending)",
+    stats:{},
+    desc:["Not detailed in the source yet \u2014 most likely grants the rote quality to Ishtar's Whisper rolls."]},
+  {id:"temple_worship", name:"Temple of Worship", rank:"ancevil", xp:4, cx:5163, cy:4432,
+    tag:"Extend your aura of influence over an entire city.",
+    stats:{"Cost":"15 Blood Points, 1 Willpower", "Action":"Instant", "Duration":"1 year"},
+    desc:["Your influence extends over an entire city you know intimately and hold some authority in. Each month, roll Presence + Chosen Skill + Ishtar's Whisper; mortals and lower-rank vampires subconsciously align their efforts with your desires.","Resisters must roll Composure + Blood Potency and spend a Willpower point, exceeding your successes to resist for a single night \u2014 repeated nightly to act independently. You may use lesser Ishtar's Whisper powers (rank 5 or below) on anyone in the city, regardless of distance and without cost.","This remains active even while you are in torpor, as long as you keep a personal bond to the city; it fades if the city drastically changes or you lose that bond."]},
+];
+
+const EDGES = [
+  ["presence_bonus","magnetic_aura"],
+  ["presence_bonus","sirens_call"],
+  ["presence_bonus","haunting_seduction"],
+  ["magnetic_aura","charm_enchantress"],
+  ["magnetic_aura","inspire_courage"],
+  ["magnetic_aura","stalwart_heart"],
+  ["sirens_call","kingmaker"],
+  ["haunting_seduction","one_that_got_away"],
+  ["haunting_seduction","enhance_sensation"],
+  ["haunting_seduction","call_me_maybe"],
+  ["charm_enchantress","throne_enchantment"],
+  ["charm_enchantress","ironclad_command"],
+  ["inspire_courage","eagles_cry"],
+  ["stalwart_heart","ripples_still_water"],
+  ["one_that_got_away","dream_drinking"],
+  ["enhance_sensation","instill_emotion_object"],
+  ["call_me_maybe","keeper_of_heart"],
+  ["call_me_maybe","celebrity"],
+  ["throne_enchantment","empress_desire"],
+  ["ironclad_command","honeyed_leash"],
+  ["eagles_cry","beautiful_deadly"],
+  ["ripples_still_water","rock_is_dead"],
+  ["dream_drinking","corruption"],
+  ["instill_emotion_object","spark_of_rage"],
+  ["keeper_of_heart","infuse_emotion"],
+  ["celebrity","summoning"],
+  ["celebrity","give_and_take"],
+  ["empress_desire","cult_personality"],
+  ["honeyed_leash","battle_meditation"],
+  ["beautiful_deadly","rapturing_banner"],
+  ["rock_is_dead","mastery_9again"],
+  ["corruption","psychic_vampirism"],
+  ["spark_of_rage","aura_dominion"],
+  ["infuse_emotion","permanent_infuse"],
+  ["summoning","internet_famous"],
+  ["rapturing_banner","veil_of_wrath"],
+  ["mastery_9again","mastery_8again"],
+  ["psychic_vampirism","seed_corruption"],
+  ["aura_dominion","harvest_of_will"],
+  ["permanent_infuse","instill_powers"],
+  ["mastery_8again","mastery_rote"],
+  ["harvest_of_will","temple_worship"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.40;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
