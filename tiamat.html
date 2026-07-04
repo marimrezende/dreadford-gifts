@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tiamat's Sovereignty — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Tiamat<span class="g">'</span>s Sovereignty <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Drakul · Demonic Form &amp; Monster Progeny</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"draconic_senses", name:"Draconic Senses", rank:"neophyte", xp:1, cx:810, cy:88,
+    tag:"Gain sharpened, reptilian senses.",
+    stats:{"Cost":"1 Ichor", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Gain enhanced vision, smell, and hearing. Your eyes become reptilian.","You add your Chosen Skill to Perception and Tracking rolls."]},
+  {id:"predatory_physique", name:"Predatory Physique", rank:"neophyte", xp:1, cx:1377, cy:88,
+    tag:"Boost a physical attribute at will.",
+    stats:{"Cost":"1 Ichor", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Choose Strength, Dexterity, or Stamina and gain +half your Chosen Skill to that attribute.","This cannot exceed your normal attribute caps."]},
+  {id:"developed_scales", name:"Developed Scales", rank:"neophyte", xp:2, cx:232, cy:396,
+    tag:"Develop huge scales that pop out from your skin.",
+    stats:{"Cost":"2 Ichor", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["The Drakul who hones his scales can grow them to bigger proportions.","Your scales grow larger, granting armor equal to your Chosen Skill rating until the end of the scene. These scales don't stack with mundane armor from equipment. This is an improved version of Draconic Resilience and does not stack with it."]},
+  {id:"draconic_resilience", name:"Draconic Resilience", rank:"neophyte", xp:1, cx:810, cy:396,
+    tag:"Develop draconic scales to defend yourself.",
+    stats:{"Cost":"1 Ichor", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Tapping into the deeper essence of their vampiric nature, the Drakul summons a demonic aspect of his form.","The vampire's skin hardens, becoming more akin to scales and giving him +2 armor until the end of the scene."]},
+  {id:"controlled_mutation", name:"Controlled Mutation", rank:"neophyte", xp:1, cx:1944, cy:396,
+    tag:"Grant a chosen mutation to a creature.",
+    stats:{"Cost":"2 Blood Points", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Target a creature that has ingested your blood and grant it a specific mutation.","Choose one: claws, scales, enhanced senses, or increased size; the creature gains the corresponding bonuses. Unlike Tiamat's Curse this is temporary, and you can only maintain one at a time."]},
+  {id:"alternate_dragon_form", name:"Alternate Dragon Form", rank:"neophyte", xp:1, cx:231, cy:706,
+    tag:"Harness your essence to improve your powers.",
+    stats:{"Cost":"1\u20134 Ichor", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["You gain an alternate dragon form. In this form you increase your non-physical attributes with the extra points, but you cannot raise your physical attributes with them.","Transformation takes 3 turns; spend a point of Ichor to reduce it by 1 turn, down to reflexive.","Enhancements \u2014 Expanded Unwavering Will: spend Ichor when aware you're targeted to add your Chosen Skill dots to any resistance roll against supernatural powers. Attribute Redistribution: redistribute your mental and social attributes on entering (they revert afterward). Extra Attributes: gain your Rank in Chosen Skill as extra points to distribute among mental and social attributes. Marks of the Dragon: you radiate palpable demonic energy, obviously supernatural, with reptilian eyes.","You gain a mental tilt that remains after leaving the form until you resolve it."]},
+  {id:"draconic_form", name:"Draconic Form", rank:"neophyte", xp:3, cx:810, cy:706,
+    tag:"Turn into a fearsome embodiment of your nature.",
+    stats:{"Cost":"1\u20134 Ichor", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["Embrace your full demonic potential, transforming into a fearsome dragon of extraordinary resilience and devastating prowess. Transformation takes 3 turns; spend Ichor to reduce it by 1 turn, down to reflexive.","Enhancements \u2014 Dragon's Endurance: Size increases by half your Chosen Skill. Dragon's Scales: activate your protective scales without spending blood. Dragon's Claws: gain a claw with weapon rating half Chosen Skill. Dragon's Bite: bite attacks deal 1 extra damage.","Redistribute your physical attributes on entering (they revert afterward), and gain your Rank in Chosen Skill as extra physical attribute points while transformed. You are monstrous, and gain a mental tilt that remains until resolved."]},
+  {id:"blood_of_the_dragon", name:"Blood of the Dragon", rank:"scion", xp:3, cx:1375, cy:706,
+    tag:"Increase your maximum attribute dots.",
+    stats:{},
+    desc:["Your maximum attribute ranks are increased, in both dragon and humanoid form, by half your Chosen Skill rank (rounded up)."]},
+  {id:"draconic_vitality", name:"Draconic Vitality", rank:"neophyte", xp:1, cx:1941, cy:706,
+    tag:"Impart a draconic mutation on a creature.",
+    stats:{"Cost":"1 Blood Point", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Target a familiar or another willing creature and impart a draconic mutation on them.","They gain +half your Chosen Skill in any physical attribute for the scene, but become visibly mutated. You can only maintain one at a time."]},
+  {id:"dragon_brood", name:"Dragon Brood", rank:"neophyte", xp:1, cx:2508, cy:706,
+    tag:"Maintain several mutated creatures at once.",
+    stats:{"Cost":"2 Blood Points", "Action":"Instant", "Duration":"Night"},
+    desc:["You may maintain up to your Chosen Skill in actively mutated creatures, and make their mutations last for the night.","Source note: the written text lists this gift as Scion rank; the tree colors it as Bloodling / Neophyte."]},
+  {id:"free_the_blood", name:"Free the Blood", rank:"scion", xp:3, cx:232, cy:1015,
+    tag:"Increase the amount of blood you can spend.",
+    stats:{"Cost":"3 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["While in Alternate Dragon Form, once per night you can increase the power of your blood.","Spend 3 Blood Points reflexively: your max blood, your max per-turn blood expenditure, and how much blood you can drink per turn all increase as if you were one Ichor Hierarchy Rank above yours, for a scene."]},
+  {id:"form_mastery", name:"Form Mastery", rank:"scion", xp:3, cx:810, cy:1015,
+    tag:"Upgrade specific aspects of the dragon form.",
+    stats:{"Cost":"2 Ichor", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Modify the original aspects of the Demon Form. Pay an extra blood point at transformation, or \u2014 once fully transformed \u2014 each blood point spent lets you choose one improvement:","Upgraded Dragon's Endurance: the Size gain equals your full Chosen Skill rank. Upgraded Dragon Scales: scale effects grant +1 armor. Upgraded Dragon's Claws: claw weapon rating equals your full Chosen Skill. Upgraded Dragon's Bite: deals half Chosen Skill in bonus damage.","Additionally, at the end of a scene where the dragon form would end, you may choose to remain in the form \u2014 though prolonged contact with the dragon risks severe physical and mental consequences."]},
+  {id:"form_improvement", name:"Form Improvement", rank:"elder", xp:3, cx:1377, cy:1015,
+    tag:"Manifest an additional powerful transformation.",
+    stats:{},
+    desc:["Manifest one additional transformation on your dragon form, picked each transformation at no additional cost:","Spiked Scales: whenever your scales absorb melee damage, your attacker takes back half the damage they dealt \u2014 up to half your Chosen Skill of it as lethal, the rest bashing (soak applies normally). Tail of the Dragon: grow a tail treated as a half-Chosen-Skill bashing weapon you can use reflexively once per turn against targets to your sides or behind. Wings of the Dragon: grow great wings and fly at up to twice your full running speed."]},
+  {id:"tiamats_curse", name:"Tiamat's Curse", rank:"scion", xp:3, cx:1942, cy:1015,
+    tag:"Turn a regular human into a monstrous creature.",
+    stats:{"Cost":"1 Willpower, 5 Blood Points", "Dice":"Resolve + Chosen Skill + Tiamat's Sovereignty vs Resolve + Stamina", "Action":"Instant", "Duration":"Indefinite"},
+    desc:["Twist a mortal victim's physical form into that of a monster, forever. Feed the victim your blood and roll.","On success, the victim becomes your familiar and undergoes a one-hour transformation of crippling pain, reborn as a monstrous servitor. Choose from the monster templates in the Additional Rules and Tables; the victim takes on that sheet. The monster still comprehends its native language and carries out simple verbal commands.","At Chosen Skill rank 7, spend 3 extra blood points to have no transformation delay on your servants."]},
+  {id:"monstrous_awakening", name:"Monstrous Awakening", rank:"scion", xp:3, cx:2508, cy:1015,
+    tag:"Grant a semblance of the draconic form to others.",
+    stats:{"Cost":"1 Willpower, 5 Blood Points per subject", "Dice":"None", "Action":"Extended (10-minute ritual)", "Duration":"1 Night"},
+    desc:["Enhance familiars who have recently consumed your blood with a semblance of the dragon transformation. In a ritual, spend a Willpower and feed each familiar five blood points (this doesn't add to their reserves) \u2014 the blood carries the dragon down their throats.","You get one point per Chosen Skill rank to enhance a familiar: +1 Physical Attribute or Size, or claws (weapon rating 1); or +1 general armor per two points. These can raise a creature's Attributes above 5, but it takes aggravated damage per excess dot when the Devotion ends.","As an instant action, designate up to Chosen Skill affected familiars to act in concert: for one turn they ignore a victim's Defense equal to your Chosen Skill dots."]},
+  {id:"aberrant_evolution", name:"Aberrant Evolution", rank:"elder", xp:3, cx:3034, cy:1015,
+    tag:"Grant a servant an extra mutation.",
+    stats:{"Cost":"3 Blood Points", "Action":"Instant", "Duration":"Scene"},
+    desc:["Target one Dragon servant and grant him one mutation \u2014 wings, regeneration, extra limbs, and the like.","This may stack with existing mutations."]},
+  {id:"blood_sovereignty", name:"Blood Sovereignty", rank:"elder", xp:3, cx:232, cy:1327,
+    tag:"Dominate weaker blood automatically.",
+    stats:{"Action":"Passive"},
+    desc:["You automatically win Blood Potency ties.","Additionally, weaker vampires suffer \u2212half your Chosen Skill on rolls resisting your powers."]},
+  {id:"burning_ichor", name:"Burning Ichor", rank:"elder", xp:3, cx:810, cy:1326,
+    tag:"Your blood bursts into flame in air.",
+    stats:{},
+    desc:["Your blood immediately bursts into flame when exposed to open air. Those who damage you and cannot avoid your blood take half your Chosen Skill in aggravated damage, +1 lethal per point of blood spilled (soakable as normal).","When you take damage you may reflexively treat it as if equivalent blood points had been spilled against an adjacent attacker. You may use this dangerous blood in other creative ways, and may opt for it not to burn if you wish."]},
+  {id:"forced_metamorphosis", name:"Forced Metamorphosis", rank:"elder", xp:3, cx:1942, cy:1326,
+    tag:"Make others assume a dragon form and frenzy.",
+    stats:{"Cost":"1 Willpower, 5 Blood Points", "Dice":"Resolve + Chosen Skill + Tiamat's Sovereignty vs Stamina + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Project your Dragon into a hapless host, where it warps flesh and bone into monstrousness. Touch an enemy, release your nephilim inside it, and roll.","If the target loses, the Dragon takes root and warps the host into the monstrous Dragon Form over two turns (the victim may still act by spending Willpower, at \u22123 to all rolls from the pain). Then the host enters a frenzy, attacking everyone but you.","When the nephilim leaves, vampires revert; mortals and familiars remain locked in dragon form, take 1 aggravated per hour, and go catatonic \u2014 unable to heal the degenerating tissue, a death sentence without extremely potent curative magic. At Chosen Skill 7 the victim obeys you instead of blind-frenzying, and you may spend 3 extra blood points to remove the delay."]},
+  {id:"dragon_shepherd", name:"Dragon Shepherd", rank:"elder", xp:3, cx:2508, cy:1326,
+    tag:"Empower all your dragon servants.",
+    stats:{"Cost":"3 Blood Points", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["All your Dragon servants gain Chosen Skill Health, half Chosen Skill Defense, and half Chosen Skill to attack rolls."]},
+  {id:"dragon_lineage", name:"Dragon Lineage", rank:"ascendant", xp:1, cx:3034, cy:1327,
+    tag:"Make a servant's mutation hereditary.",
+    stats:{"Cost":"5 Blood Points, 1 Willpower", "Action":"1 hour"},
+    desc:["Choose one servant with a mutation; the mutation becomes permanent.","The creature can now reproduce, and any offspring it bears will also carry the mutation."]},
+  {id:"ascended_of_the_blood", name:"Ascended of the Blood", rank:"ascendant", xp:3, cx:232, cy:1638,
+    tag:"Improve your alternate dragon form.",
+    stats:{},
+    desc:["When you change into the Alternate Draconic Form, spend 3 extra Blood Points to assume a superior form instead:","Extreme Unwavering Will: add your Chosen Skill dots to resistance rolls against any supernatural power; when aware you're targeted, spend a Willpower to add your Chosen Skill again \u2014 effectively 2\u00d7 your rank in the resistance pool. Wizard's Breath: spit spells or gifts at closely clustered foes as an instant action \u2014 pay the power's cost plus 3 blood to affect multiple targets; roll only if opponents dodge (successes don't add to damage), non-dodgers are hit automatically. Legendary Resistance: spend 3 Blood Points to purge an unwanted condition or tilt while in draconic form."]},
+  {id:"tyrant_of_the_skies", name:"Tyrant of the Skies", rank:"ascendant", xp:4, cx:810, cy:1636,
+    tag:"Gain a mastered dragon form.",
+    stats:{"Cost":"5 Blood Points, 1 Willpower", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["When transforming or already in Draconic Form, spend 5 additional Blood Points to assume a superior form instead:","Superior Dragon's Endurance: Size gain becomes 2\u00d7 Chosen Skill. Superior Dragon's Claws: weapon rating equals full Chosen Skill, deals Lethal even to vampires, and ignores mundane armor and durability entirely. Superior Dragon's Bite: half Chosen Skill in aggravated; consume a corpse whole to gain all its blood, even above your per-turn limit.","Breath Weapon (requires Burning Ichor): spit any amount of blood at clustered foes as an instant action; this blood doesn't count to your per-turn limit; roll only vs dodgers; use Burning Ichor damage. Legendary Resistance: spend 3 Blood Points to purge a condition or tilt (Clash of Wills for supernaturally imposed ones)."]},
+  {id:"tiamats_breath", name:"Tiamat's Breath", rank:"ascendant", xp:2, cx:1375, cy:1636,
+    tag:"Expel a real breath of flames.",
+    stats:{"Cost":"4 Blood Points", "Action":"Instant", "Duration":"Instant"},
+    desc:["Expel real flames with your breath, with all that entails for banes and environmental effects. You engulf a cone-shaped area with length equal to twice your Chosen Skill rating in flames.","As with Breath Weapon, make a Tiamat attack roll against each opponent in the area (Chosen Skill weapon rating, as fire damage)."]},
+  {id:"birth_the_monster", name:"Birth the Monster", rank:"ascendant", xp:4, cx:1942, cy:1636,
+    tag:"Turn someone into a terrifying monster.",
+    stats:{},
+    desc:["A more potent version of Tiamat's Curse: imbue a subject with a colossal amount of nephilim energy, creating a truly frightening and dangerous monster."]},
+  {id:"mother_of_monsters", name:"Mother of Monsters", rank:"ascendant", xp:1, cx:2508, cy:1638,
+    tag:"Spawn monsters from your own flesh.",
+    stats:{"Cost":"2 Blood Points + 1 Aggravated Damage per monster", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["An advanced version of Tiamat's Curse: spawn monsters from your very flesh.","With an instant action, create one or more monsters from your own flesh by paying the cost. Each takes a turn to form. When destroyed or when the scene ends, the monsters turn into a pile of ashes."]},
+  {id:"dragon_plague", name:"The Dragon Plague", rank:"ancevil", xp:4, cx:3034, cy:1636,
+    tag:"Transform every mortal in a vast radius.",
+    stats:{"Cost":"10 Blood Points, 1 Willpower", "Action":"Instant", "Duration":"Scene"},
+    desc:["Transform all mortals within a radius of your Chosen Skill \u00d7 100 meters.","They must roll to resist, or gain the transformation."]},
+  {id:"draconic_apotheosis", name:"Draconic Apotheosis", rank:"ancevil", xp:4, cx:232, cy:1945,
+    tag:"Develop a supernatural comprehension of the Gifts.",
+    stats:{},
+    desc:["You can use powers of gifts you do not possess, of Scion rank or lower.","When you purchase this power, choose a gift: powers up to Elder rank of that gift cost you 0 blood (this choice can't be changed later)."]},
+  {id:"hydras_wrath", name:"Hydra's Wrath", rank:"ascendant", xp:4, cx:810, cy:1945,
+    tag:"Grow additional heads in your dragon form.",
+    stats:{"Cost":"2 Blood Points per additional head", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["While using Tyrant of the Skies, spend 2 Blood Points to grow an additional head. The maximum number of extra heads is half your rank in this gift.","When you take your action with your main head, the others may make a long-burst autofire bite attack; your blood-intake limit applies once to each head. Your original head may instead take a different action of your choice, such as casting a spell or using a gift."]},
+  {id:"godhead", name:"Godhead", rank:"ancevil", xp:4, cx:1375, cy:1945,
+    tag:"Assume a god-like dragon form.",
+    stats:{"Cost":"10 Ichor, 1 Willpower", "Action":"Instant", "Duration":"Scene"},
+    desc:["Assume a divine dragon form. You become a dragon of Size 30, immune to mundane damage and to mind effects (powers must win a Clash of Wills), capable of flight, and your attacks count as magical.","When transforming, choose one \u2014 Dragon of Tyranny: Chosen Skill automatic successes on power rolls. Dragon of Ruin: Chosen Skill extra weapon damage. Dragon of Eternity: automatically regenerate your Chosen Skill in Health each turn."]},
+  {id:"mother_of_dragons", name:"Mother of Dragons", rank:"ancevil", xp:4, cx:1942, cy:1945,
+    tag:"Create a true, unique dragon.",
+    stats:{"Cost":"10 Blood Points, 1 Willpower", "Action":"One Night"},
+    desc:["Create a true dragon \u2014 not a servant, not a familiar, but a unique creature.","The Dragon possesses independent will, is permanent unless destroyed, and inherits your bloodline. Only one may exist."]},
+];
+
+const EDGES = [
+  ["draconic_senses","predatory_physique"],
+  ["draconic_senses","draconic_resilience"],
+  ["draconic_resilience","developed_scales"],
+  ["draconic_resilience","draconic_form"],
+  ["draconic_form","alternate_dragon_form"],
+  ["draconic_form","blood_of_the_dragon"],
+  ["draconic_form","form_mastery"],
+  ["alternate_dragon_form","free_the_blood"],
+  ["free_the_blood","blood_sovereignty"],
+  ["blood_sovereignty","ascended_of_the_blood"],
+  ["ascended_of_the_blood","draconic_apotheosis"],
+  ["form_mastery","form_improvement"],
+  ["form_mastery","burning_ichor"],
+  ["burning_ichor","tyrant_of_the_skies"],
+  ["tyrant_of_the_skies","tiamats_breath"],
+  ["tyrant_of_the_skies","hydras_wrath"],
+  ["hydras_wrath","godhead"],
+  ["tiamats_breath","godhead"],
+  ["predatory_physique","controlled_mutation"],
+  ["controlled_mutation","draconic_vitality"],
+  ["controlled_mutation","dragon_brood"],
+  ["draconic_vitality","tiamats_curse"],
+  ["dragon_brood","monstrous_awakening"],
+  ["tiamats_curse","forced_metamorphosis"],
+  ["monstrous_awakening","aberrant_evolution"],
+  ["monstrous_awakening","dragon_shepherd"],
+  ["aberrant_evolution","dragon_lineage"],
+  ["forced_metamorphosis","birth_the_monster"],
+  ["dragon_shepherd","mother_of_monsters"],
+  ["dragon_lineage","dragon_plague"],
+  ["birth_the_monster","mother_of_dragons"],
+  ["mother_of_monsters","dragon_plague"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.57;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
