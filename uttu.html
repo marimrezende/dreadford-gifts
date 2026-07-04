@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Uttu's Web — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Uttu<span class="g">'</span>s Web <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Moroi · House of the Spider</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"poison_ichor", name:"Poison Ichor", rank:"neophyte", xp:1, cx:3147, cy:88,
+    tag:"Your blood transforms into a deadly toxin.",
+    stats:{"Cost":"1 Blood Point per dose", "Dice":"Stamina + Blood Potency to resist, vs Composure + Medicine + Uttu's Web", "Duration":"Scene"},
+    desc:["Spend 1 Blood Point to create a dose of poison from your blood, inflicting the Moderate Poisoned Tilt until scene's end (1 bashing per turn in combat). Victims resist each turn; taking a non-reflexive action gives them \u22123 to resist that turn.","Doses can stack up to half your Medicine rank (rounded up), but only one dose applies per attack, and the resist roll is made once against all instances. You also gain Hollow Fangs, letting you inject poison with your bite reflexively.","Note: a toxin usually must reach the target's blood to work. It's resisted like a toxin but affects Nosferatu and mortals alike. Only one type of toxin can be made per turn, and poisoned blood must be used the same scene \u2014 it can't be stored."]},
+  {id:"wall_crawling", name:"Wall Crawling", rank:"neophyte", xp:1, cx:1980, cy:88,
+    tag:"Move up and along any solid surface freely.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Move up and along any solid surface as easily as walking, so long as you use all four limbs to climb.","Whether scaling sheer cliffs or crawling upside-down across ceilings, you move freely and silently, making it hard for enemies to detect your approach."]},
+  {id:"feast_of_the_heart", name:"Feast of the Heart", rank:"neophyte", xp:1, cx:4315, cy:88,
+    tag:"Be better at consuming the heart of other vampires.",
+    stats:{},
+    desc:["Whenever you consume the heart of a vampire, you may add your Medicine to it (max 5 ranks).","If only members of your Brood consume the heart, all of them can benefit \u2014 each rolling separately. If you have no Brood, you may let one vampire share the benefits with you (they make their own roll)."]},
+  {id:"snare_web", name:"Snare Web", rank:"scion", xp:2, cx:232, cy:483,
+    tag:"Negate dodges instinctively.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Composure + Medicine + Uttu's Web vs Defense", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["If an enemy within your Web Tricks range uses Dodge, fling your web to negate its benefits. Roll your Uttu's pool as an attack before the Dodge takes effect; if you hit, the enemy gains no benefit from the dodge.","Using this power costs you your own Defense. You can't use it if you already had no Defense or had partially sacrificed it."]},
+  {id:"weave_silk", name:"Weave Silk", rank:"neophyte", xp:2, cx:813, cy:481,
+    tag:"Spin webs that slow, entangle, and ensnare foes.",
+    stats:{"Cost":"1 Blood Point (tricks) / 2 (full web)", "Dice":"Composure + Medicine + Uttu's Web", "Action":"Instant", "Duration":"Scene or until destroyed"},
+    desc:["Web Tricks: fling a single strand (length 3\u00d7 Medicine in meters; +3\u00d7 per extra blood point) for swinging, descending, or pulling. As a super-resistant rope it holds Medicine \u00d7 200 kg. Or target an opponent (vs Strength + Athletics) to impose Immobilized, plus Hogtied on a critical.","Full Web (2 Blood Points): weave a silken web with radius equal to your Medicine. Inside, enemies suffer your Medicine as a penalty to Defense and all Physical pools; moving requires an Athletics roll; failing a physical action inside imposes Immobilized. The web has durability equal to the penalties imposed; single-strand webs have durability half your Medicine, structure 1, destroyed only by cutting or fire."]},
+  {id:"hatch_the_spiders", name:"Hatch the Spiders", rank:"neophyte", xp:2, cx:1396, cy:481,
+    tag:"Create several small spiders from your blood.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Instant", "Duration":"Until sunrise"},
+    desc:["Create a number of small spiders equal to your Medicine rank \u2014 high Defense and Stealth, but 1 Health and 1 soak each. You can switch off your own senses to use a spider's equivalent sense. They last until sunrise or destruction; recasting replenishes fallen ones.","Spider stats \u2014 Defense: twice your Medicine; Initiative 8; Attack (Composure + Medicine + Uttu's Web) deals at most 1 damage but counts as a delivery method for any poison you know; Stealth uses your Composure + Medicine + Uttu's Web."]},
+  {id:"transubstantiation", name:"Transubstantiation", rank:"neophyte", xp:2, cx:1981, cy:481,
+    tag:"Transmute one substance into another until sunrise.",
+    stats:{"Cost":"1 Blood Point per Medicine rank of the object's size", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["Pour your blood into an object to turn it into any liquid or solid substance you know (e.g. splash blood on a door or cuffs to turn them to water). You can't create exotic materials.","Alternatively, use it to increase an object's durability (this won't also change its substance). Changes last the scene."]},
+  {id:"lingering_poisons", name:"Lingering Poisons", rank:"neophyte", xp:2, cx:2565, cy:481,
+    tag:"Make poisons that last for the night.",
+    stats:{"Action":"Passive (always on)"},
+    desc:["You can now maintain a number of poison doses equal to your Medicine rank that last for the night \u2014 inside your own body, or in containers, poisoned weapons, and so on.","At sunrise these doses become inert. This power is always on and has no cost."]},
+  {id:"lesser_necrotizing", name:"Lesser Necrotizing Poison", rank:"neophyte", xp:2, cx:3148, cy:481,
+    tag:"Inflict immediate harm once to a target.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Stamina + Blood Potency vs Composure + Medicine + Uttu's Web", "Action":"Instant"},
+    desc:["Create a poison that immediately deals lethal damage equal to your Medicine rank on a failed resistance roll. Mortals cannot roll to resist it.","A target can only be affected once per scene. This poison does not need contact with the victim's blood to force the resistance roll."]},
+  {id:"fortify_poison", name:"Fortify Poison", rank:"neophyte", xp:2, cx:3732, cy:481,
+    tag:"Your base poison evolves into a Grave Poison.",
+    stats:{},
+    desc:["Your base poison (from Poison Ichor) evolves into a Grave Poison that deals 1 lethal damage per turn \u2014 even to vampires \u2014 instead of bashing."]},
+  {id:"brood_member", name:"Brood Member", rank:"neophyte", xp:1, cx:4315, cy:481,
+    tag:"Become part of a brood.",
+    stats:{},
+    desc:["A Brood is a group of closely linked Moroi. Its max size is the highest Medicine among its members, +1. A vampire can belong to only one brood, and every member counts as only once-removed for blood sympathy.","Leaving a brood is an instant action; joining takes a night-long ceremony (skippable when siring). The leader can remove members; ties in Medicine require one to be recognized as leader. You can also sire a whole brood at once \u2014 up to your Medicine rank in childer in a single ritual, paying the cost only once."]},
+  {id:"spit_venom", name:"Spit Venom", rank:"neophyte", xp:2, cx:5484, cy:481,
+    tag:"Spit your venom at a distance.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Composure + Medicine + Uttu's Web", "Action":"Instant"},
+    desc:["Spit poison at a range of twice your Medicine rank in meters. This requires an attack roll as if using a firearm; success inflicts your chosen poison."]},
+  {id:"poisonous_skin", name:"Poisonous Skin", rank:"neophyte", xp:1, cx:6064, cy:481,
+    tag:"Make direct contact with your skin a delivery method.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Instant", "Duration":"1 turn"},
+    desc:["Spend 1 Blood Point to make your skin a delivery method for one turn: any who touch your skin may be subjected to a dose of a poison you have ready."]},
+  {id:"web_cocoon", name:"Web Cocoon", rank:"neophyte", xp:1, cx:232, cy:877,
+    tag:"Create a protective cocoon for you to sleep in.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"1 minute", "Duration":"Until sunset"},
+    desc:["Create a cocoon that protects you from indirect rays of sunlight (though not direct sunlight). You may lace it with one of your poisons \u2014 anyone outside your brood who touches it is subjected to the poison.","If a brood leader hosts other members in a cocoon, only the leader spends the blood point to awaken; all members can sleep in it freely. With no brood, you may extend this benefit to one vampire as if they were part of your brood."]},
+  {id:"lasting_webs", name:"Lasting Webs", rank:"neophyte", xp:2, cx:813, cy:877,
+    tag:"Create webs that last for longer periods of time.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"Night"},
+    desc:["Your webs are no longer limited to a few minutes. When creating a web, spend the blood point and it lasts until sunrise, provided it isn't destroyed first."]},
+  {id:"poisonous_summons", name:"Poisonous Summons", rank:"neophyte", xp:1, cx:1396, cy:877,
+    tag:"Your summons can deliver poisons on attacks.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["When one of your summons lands an attack against an enemy, spend 1 Ichor to deliver a poison you know as part of that attack."]},
+  {id:"poison_the_servant", name:"Poison the Servant", rank:"neophyte", xp:2, cx:1981, cy:877,
+    tag:"Grant your familiar a poisonous blood.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"When feeding the familiar"},
+    desc:["Transmute your familiar's blood into one of your poisons. If someone drinks from him or harms him, that counts as a delivery method for the appropriate poison.","When you feed him your Ichor to maintain him as a familiar, spend one extra blood point to create this effect. It lasts until the familiar next needs Ichor to remain a familiar."]},
+  {id:"delay_poison", name:"Delay Poison", rank:"neophyte", xp:2, cx:2565, cy:877,
+    tag:"Inflict someone with a delayed effect poison.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"Until sunrise"},
+    desc:["Inflict a poison that won't take effect immediately, activating later that night. When applied, choose the delay (up to your Medicine rank in hours); the poison won't trigger if sunrise comes first.","At Scion or Elder rank, you may instead trigger the poison at any point that night if you have a sympathetic connection to the target \u2014 activating it remotely costs 1 Willpower."]},
+  {id:"sickening_poison", name:"Sickening Poison", rank:"neophyte", xp:1, cx:3148, cy:877,
+    tag:"A poison that makes the target feel sick and weak.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Stamina + Blood Potency vs Composure + Medicine + Uttu's Web"},
+    desc:["Create a dose of Sickening Poison that inflicts the Sick Tilt: a \u22121 penalty to all actions, growing by 1 each turn to a maximum of your Medicine rank.","Multiple instances stack, accelerating the penalty's progression, though the maximum stays the same."]},
+  {id:"serpents_numbing_kiss", name:"Serpent's Numbing Kiss", rank:"neophyte", xp:2, cx:3732, cy:877,
+    tag:"A mind-altering poison that makes the target gullible.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Composure + Medicine + Uttu's Web vs Stamina + Blood Potency", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Inflict a mind-altering poison that makes a target more vulnerable to emotional manipulation.","An affected target takes a penalty equal to your Medicine rank on any social resistance roll against you."]},
+  {id:"brood_feeding", name:"Brood Feeding", rank:"neophyte", xp:1, cx:4315, cy:877,
+    tag:"Economically feed from a mortal with your brood.",
+    stats:{},
+    desc:["When the entire brood feeds from a mortal, each member receives a blood point for each point the mortal loses."]},
+  {id:"fabricate_thread", name:"Fabricate Thread", rank:"neophyte", xp:1, cx:4900, cy:877,
+    tag:"May temporarily make an ally count as brood.",
+    stats:{"Cost":"2 Blood Points, 1 Willpower (for an ally)", "Dice":"None", "Action":"Reflexive", "Duration":"Night"},
+    desc:["Make a semblance of a brood for yourself \u2014 usable only if you have no Brood. Either link a single ally as your brood, or make any of your summons (from any gift) count as your brood.","Ally version: you can't recover the spent Willpower while it's active and can only use it once per night; the ally also spends a Willpower that won't recover. The ally is your brood until the end of the night. Summons version: your active summons become brood while they exist or until night's end (normal brood size limits apply)."]},
+  {id:"webbed_traps", name:"Webbed Traps", rank:"neophyte", xp:1, cx:813, cy:1273,
+    tag:"Add your poison to your webs.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"Same as the web"},
+    desc:["When creating a web, add a dose of your poison to it for an additional Blood Point.","The first creature to touch the web with bare skin is automatically subjected to the poison."]},
+  {id:"black_widows", name:"Black Widows", rank:"scion", xp:2, cx:1396, cy:1273,
+    tag:"Create a group of dangerous spiders.",
+    stats:{"Cost":"3 Blood Points, 1 Willpower", "Dice":"None", "Action":"Instant", "Duration":"Until sunrise"},
+    desc:["Summon a group of spiders from your blood \u2014 like Hatch the Spiders, but far deadlier. While summoned, you can't recover the Willpower spent to create them.","Spider stats \u2014 Defense, Soak, and Health each equal your Medicine; Speed 11; Initiative 8; Attack (Composure + Medicine + Uttu's Web), 2 weapon damage. They walk any surface, can use your web powers (paying the necessary blood), and always inflict your basic Uttu's Web poison on a hit, free of cost."]},
+  {id:"foul_blood", name:"Foul Blood", rank:"scion", xp:2, cx:1981, cy:1273,
+    tag:"Your feeding grounds do not nourish others.",
+    stats:{},
+    desc:["Create an alchemic incantation on your feeding grounds so that unauthorized vampires gain no sustenance from feeding on mortals there."]},
+  {id:"permanent_poisons", name:"Permanent Poisons", rank:"scion", xp:2, cx:2563, cy:1273,
+    tag:"Maintain more poisons, for a longer period.",
+    stats:{},
+    desc:["The poisons you create are no longer limited to a single night \u2014 they now last indefinitely until used. Your dose limit also rises to 2\u00d7 your Medicine rank."]},
+  {id:"blood_puking_poison", name:"Blood-puking Poison", rank:"neophyte", xp:2, cx:3148, cy:1273,
+    tag:"A poison that destroys blood points.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Stamina + Blood Potency vs Composure + Medicine + Uttu's Web"},
+    desc:["Create a poison that destroys Blood Points equal to your Medicine rank (mortals suffer that much lethal damage instead).","The poison causes blood to pour from the victim's pores gruesomely."]},
+  {id:"create_antidote", name:"Create Antidote", rank:"neophyte", xp:2, cx:3733, cy:1273,
+    tag:"Create medicine and antidotes.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"1 minute ritual", "Duration":"Until sunrise"},
+    desc:["Create medicine or an antidote for any disease or poison you know \u2014 one dose, which must be consumed before sunrise to take effect.","To make the right antidote you may need to succeed at Medicine checks (or otherwise discover) which disease or poison afflicts the target. Especially aggressive ailments may require extended treatment."]},
+  {id:"brood_healing", name:"Brood Healing", rank:"neophyte", xp:2, cx:4315, cy:1273,
+    tag:"Spend blood to heal others from your brood.",
+    stats:{},
+    desc:["Spend your blood to heal the damage of others in your brood."]},
+  {id:"the_venom_within", name:"The Venom Within", rank:"neophyte", xp:2, cx:4900, cy:1273,
+    tag:"Poison yourself to increase your own capabilities.",
+    stats:{"Cost":"None", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Inflict a special venom on yourself for power. It acts like Poison Ichor's base poison but deals 1 lethal to you each time you fail the resistance roll.","While it's active you may spend 1 more blood per turn than your limit. You can spend 1 blood to end it early. Usable once per night, and only if you have no Brood."]},
+  {id:"living_webs", name:"Living Webs", rank:"scion", xp:2, cx:814, cy:1669,
+    tag:"Make intelligent and durable webs in your haven.",
+    stats:{"Cost":"Passive (always on); 5 Blood Points, 1 Willpower (active)", "Action":"1-hour ritual on the haven", "Duration":"Indefinite"},
+    desc:["Passive: you instinctively feel if any of your webs are disturbed in any way, regardless of distance (a power hiding this forces a Clash of Wills).","Active (haven only): your webs there last indefinitely and gain limited sentience as an extension of your will \u2014 perceiving surroundings, sharing psychic impressions with you, moving around, adapting to your designs, and taking blood from intruders on contact. The webs drain 1 blood point per turn and can store total blood equal to your haven merit dots plus your Medicine (this blood doesn't spoil)."]},
+  {id:"webbed_summons", name:"Webbed Summons", rank:"scion", xp:1, cx:1396, cy:1669,
+    tag:"Allow any of your summons to use your web powers.",
+    stats:{"Cost":"1 Blood Point beyond the power's cost", "Dice":"None", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["Any of your summons may use any of your web powers if you spend an additional blood point."]},
+  {id:"taste_of_death", name:"Taste of Death", rank:"elder", xp:3, cx:1981, cy:1669,
+    tag:"Render your own blood incredibly acidic to others.",
+    stats:{},
+    desc:["Blood of Destruction: make the blood in your body incredibly acidic, dealing aggravated damage to those who contact it."]},
+  {id:"dual_poison", name:"Dual Poison", rank:"elder", xp:4, cx:2563, cy:1669,
+    tag:"Become able to deliver two doses of venom at once.",
+    stats:{"Cost":"2 Blood Points (plus each poison's cost)", "Dice":"None", "Action":"Reflexive"},
+    desc:["When delivering poison, deliver two doses at once \u2014 to intensify an effect or combine two different toxins. You may also produce two different poisons in the same turn.","This costs 2 Blood Points, plus the cost of the poisons you produce."]},
+  {id:"necrotizing_poison", name:"Necrotizing Poison", rank:"scion", xp:3, cx:3148, cy:1669,
+    tag:"A poison that deals immediate damage.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Stamina + Blood Potency vs Composure + Medicine + Uttu's Web", "Action":"Instant"},
+    desc:["Create a necrotizing poison that immediately deals lethal damage \u2014 even to vampires \u2014 equal to your Medicine rank on a failed resistance roll. Mortals cannot roll to resist it.","A target can only be affected once per turn. This poison does not need contact with the victim's blood to force the resistance roll."]},
+  {id:"toxin_enhancement", name:"Toxin Enhancement", rank:"neophyte", xp:1, cx:3732, cy:1669,
+    tag:"Make mundane chemical substances affect vampires.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"1 minute ritual", "Duration":"Until sunrise"},
+    desc:["Using your blood's properties, affect drugs and similar mundane chemicals so they can affect vampires.","The treated batch retains its supernatural properties for the rest of the night."]},
+  {id:"shared_blood", name:"Shared Blood", rank:"elder", xp:3, cx:4315, cy:1669,
+    tag:"Spend blood for other members of your brood.",
+    stats:{},
+    desc:["Spend your blood to fuel the Disciplines and Physical Intensity of other members of your Brood \u2014 and they can do the same for you."]},
+  {id:"poisons_breath", name:"Poison's Breath", rank:"ascendant", xp:3, cx:5482, cy:1669,
+    tag:"Exhale a poisonous mist that covers the battlefield.",
+    stats:{"Cost":"3 Blood Points", "Dice":"None", "Action":"Instant", "Duration":"1 turn"},
+    desc:["Exhale a mist of your chosen poison, covering an area with radius equal to your Uttu's Web rank. All within must resist the poison.","This single dose permeates the whole area, but the mist disperses at the end of the turn."]},
+  {id:"contagion", name:"Contagion", rank:"ancevil", xp:4, cx:6064, cy:1669,
+    tag:"Make one of your poisons contagious in close contact.",
+    stats:{"Cost":"15 Blood Points, 1 Willpower", "Dice":"None", "Action":"Instant", "Duration":"Days equal to your Uttu's Web rank"},
+    desc:["Infect another's blood with your chosen poison, spreading it like a contagion. Anyone in close contact with the infected person becomes poisoned, and if they fail the resistance roll they too become carriers.","The infection endures for a number of days equal to your Uttu's Web rank."]},
+  {id:"brood_mother", name:"The Brood Mother", rank:"elder", xp:3, cx:1396, cy:2065,
+    tag:"Summon a powerful spider with several capabilities.",
+    stats:{"Cost":"6 Blood Points, 1 Willpower", "Dice":"None", "Action":"1 hour to ready", "Duration":"Permanent"},
+    desc:["Create a living venomous spider from your blood \u2014 a familiar that acts independently but obeys your commands without hesitation. Normally used to guard temples or power places.","The Brood Mother has an Ichor pool of one-third your max (and spends one-third your max per turn), feeding on blood to fill it. As a familiar it can have gifts, has blood senses equal to yours, uses blood intensity and blood healing (which you can fuel with your own blood), and can use your lower-rank Uttu summon powers to spawn spiders."]},
+  {id:"blood_of_acid", name:"Blood of Acid", rank:"ascendant", xp:2, cx:1981, cy:2065,
+    tag:"Make your own blood permanently acidic.",
+    stats:{},
+    desc:["Permanently make your Blood Points highly corrosive \u2014 your blood is acidic for good."]},
+  {id:"blood_clot", name:"Blood Clot", rank:"scion", xp:3, cx:3148, cy:2065,
+    tag:"This poison forces blood to clot inside the body.",
+    stats:{"Cost":"2 additional Blood Points"},
+    desc:["This poison amplifies the Blood-puking effect with a deadly twist: instead of spilling out, the blood coagulates internally, reducing the victim's effective blood pool until sunrise.","Mortals who succumb face dire medical consequences. Activating this enhanced poison costs 2 additional Blood Points."]},
+  {id:"scorpions_touch", name:"Scorpion's Touch", rank:"scion", xp:2, cx:3733, cy:2065,
+    tag:"Sap attributes from your target instead of health.",
+    stats:{},
+    desc:["Create a contact poison that greatly debilitates a victim physically: damage from this toxin is lost from the subject's Strength rather than Health, and heals at 1 dot every 15 minutes.","For 3 experience points, gain a second toxin that affects Dexterity instead of Strength."]},
+  {id:"turn_into_brood", name:"Turn Into Brood", rank:"elder", xp:3, cx:4315, cy:2065,
+    tag:"Make any nosferatu part of your brood.",
+    stats:{},
+    desc:["Make any vampire part of your brood, even if he isn't a Moroi."]},
+  {id:"thin_blood", name:"Thin Blood", rank:"elder", xp:3, cx:3148, cy:2461,
+    tag:"A poison that disrupts the healing properties of Ichor.",
+    stats:{"Dice":"Stamina + Blood Potency vs Composure + Medicine + Uttu's Web"},
+    desc:["Craft a venom that disrupts a vampire's regeneration, preventing them from using Blood Points to heal wounds until the scene ends.","If the victim fails to resist, their Blood Points will not knit flesh until the effect expires."]},
+  {id:"erosion", name:"Erosion", rank:"ascendant", xp:3, cx:3733, cy:2461,
+    tag:"Render the target physically incapable.",
+    stats:{"Cost":"5 Blood Points per dose", "Dice":"Stamina + Blood Potency vs Composure + Medicine + Uttu's Web"},
+    desc:["Your venom saps every ounce of physical resilience, reducing all of the target's physical attributes to zero on a failed resistance roll.","You can raise the difficulty by administering additional doses, each adding a \u22121 penalty to the resistance roll."]},
+  {id:"slow_the_blood", name:"Slow the Blood", rank:"ascendant", xp:4, cx:3148, cy:2857,
+    tag:"A poison that affects blood expenditure per turn.",
+    stats:{},
+    desc:["A new poison that reduces the maximum amount of blood an enemy can spend per turn."]},
+  {id:"weaken_the_blood", name:"Weaken the Blood of the Ancients", rank:"ancevil", xp:4, cx:3148, cy:3250,
+    tag:"Affect the Ichor Hierarchy.",
+    stats:{"Cost":"10 Blood Points (extendable)", "Dice":"Stamina + Blood Potency vs Composure + Medicine + Uttu's Web", "Duration":"Until sunrise (extendable)"},
+    desc:["This poison directly lowers the target's Ichor rank if they fail to resist, robbing even the mightiest vampires of their power. Additional doses stack the effect; against mortals, it is fatal.","It costs 10 Blood Points to craft, lasting until sunrise. To extend it, invest more blood: +10 for a month, +10 for a year, +10 for a decade, +10 more for a century."]},
+  {id:"poison_bomb", name:"Poison Bomb", rank:"scion", xp:2, cx:5482, cy:877,
+    tag:"Upon dying, your target explodes in a poison shower.",
+    stats:{"Cost":"2 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["If someone has been affected by one of your poisons, transform their blood into that toxin as they die, making them explode in a burst of poison.","Activated at the time of death. The burst has a radius equal to your Medicine rank, and the poison need only contact the victims' skin to take effect (if they fail to resist)."]},
+  {id:"poison_spray", name:"Poison Spray", rank:"elder", xp:3, cx:5482, cy:1273,
+    tag:"Spit poison in a cone in front of you.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Composure + Medicine + Uttu's Web", "Action":"Instant"},
+    desc:["Spit your venom in a cone with width half your Medicine rank in meters, reaching up to half your Medicine rank in meters, possibly hitting several people at once.","This requires an attack roll (as if using a firearm) for each target; success inflicts your chosen poison."]},
+  {id:"toxic_spells", name:"Toxic Spells", rank:"scion", xp:2, cx:6064, cy:877,
+    tag:"You may imbue your poisons into your spells.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["Spend 1 Blood Point to activate this delivery method for one turn: magically imbue any blood-magic spell you cast with one of your poisons."]},
+  {id:"corrupt_blood", name:"Corrupt Blood", rank:"ascendant", xp:3, cx:6064, cy:1273,
+    tag:"Make the blood of another one of your toxins.",
+    stats:{"Cost":"5 Blood Points", "Dice":"None", "Action":"Instant", "Duration":"Sunrise"},
+    desc:["Transform the blood of a mortal or vampire you touch into a toxin of your choice.","The corrupted blood can then be passed on, infecting the first victim who consumes it or comes into contact with it, until sunrise."]},
+  {id:"unshared_blood", name:"Unshared Blood", rank:"neophyte", xp:2, cx:4900, cy:481,
+    tag:"Better resist powers when you don't have a brood.",
+    stats:{},
+    desc:["While you have no Brood, add your Medicine to your pools to resist supernatural powers."]},
+];
+
+const EDGES = [
+  ["poison_ichor","wall_crawling"],
+  ["poison_ichor","feast_of_the_heart"],
+  ["poison_ichor","weave_silk"],
+  ["poison_ichor","hatch_the_spiders"],
+  ["poison_ichor","transubstantiation"],
+  ["poison_ichor","lingering_poisons"],
+  ["poison_ichor","lesser_necrotizing"],
+  ["poison_ichor","fortify_poison"],
+  ["poison_ichor","brood_member"],
+  ["poison_ichor","spit_venom"],
+  ["poison_ichor","poisonous_skin"],
+  ["weave_silk","snare_web"],
+  ["weave_silk","lasting_webs"],
+  ["lasting_webs","web_cocoon"],
+  ["lasting_webs","webbed_traps"],
+  ["webbed_traps","living_webs"],
+  ["hatch_the_spiders","poisonous_summons"],
+  ["poisonous_summons","black_widows"],
+  ["black_widows","webbed_summons"],
+  ["webbed_summons","brood_mother"],
+  ["transubstantiation","poison_the_servant"],
+  ["poison_the_servant","foul_blood"],
+  ["foul_blood","taste_of_death"],
+  ["taste_of_death","blood_of_acid"],
+  ["lingering_poisons","delay_poison"],
+  ["delay_poison","permanent_poisons"],
+  ["permanent_poisons","dual_poison"],
+  ["lesser_necrotizing","sickening_poison"],
+  ["sickening_poison","blood_puking_poison"],
+  ["blood_puking_poison","necrotizing_poison"],
+  ["necrotizing_poison","blood_clot"],
+  ["blood_clot","thin_blood"],
+  ["thin_blood","slow_the_blood"],
+  ["slow_the_blood","weaken_the_blood"],
+  ["fortify_poison","serpents_numbing_kiss"],
+  ["serpents_numbing_kiss","create_antidote"],
+  ["create_antidote","toxin_enhancement"],
+  ["toxin_enhancement","scorpions_touch"],
+  ["scorpions_touch","erosion"],
+  ["brood_member","unshared_blood"],
+  ["brood_member","brood_feeding"],
+  ["brood_feeding","brood_healing"],
+  ["brood_healing","shared_blood"],
+  ["shared_blood","turn_into_brood"],
+  ["unshared_blood","fabricate_thread"],
+  ["fabricate_thread","the_venom_within"],
+  ["spit_venom","poison_bomb"],
+  ["poison_bomb","poison_spray"],
+  ["poison_spray","poisons_breath"],
+  ["poisonous_skin","toxic_spells"],
+  ["toxic_spells","corrupt_blood"],
+  ["corrupt_blood","contagion"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.48;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
