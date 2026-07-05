@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Nergal's Favor — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Nergal<span class="g">'</span>s Favor <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Panthera · House of the Cat</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"evil_eye", name:"Evil Eye", rank:"neophyte", xp:1, cx:711, cy:79,
+    tag:"Curse a target with misfortune through your gaze.",
+    stats:{"Cost":"1 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant"},
+    desc:["With a direct look you invoke a curse from a distance \u2014 this power only affects mundane rolls.","Success: the victim gains the Cursed condition, a penalty equal to half your Chosen Skill on all rolls for the rest of the scene. Exceptional: the 10-again rule is negated for the victim all scene. Dramatic failure: it backfires and your rolls against this individual take a half-Chosen-Skill penalty all scene.","A target can carry only one Evil Eye at a time. Cursed resolves if you lose line of sight or the target rolls a dramatic failure while under it."]},
+  {id:"boon", name:"Boon", rank:"neophyte", xp:1, cx:2727, cy:79,
+    tag:"Grant good fortune to yourself or an ally.",
+    stats:{"Cost":"1 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor (can be contested by Resolve + Blood Potency)", "Action":"Instant"},
+    desc:["Bring good fortune to yourself or an ally \u2014 this power only affects mundane rolls.","Success: the target gains the Boon condition, a bonus equal to half your Chosen Skill on all rolls for the rest of the scene. Exceptional: their next roll benefits from the 9-again rule. Dramatic failure: it backfires and your rolls take a half-Chosen-Skill penalty all scene.","A target can carry only one Boon at a time."]},
+  {id:"hex", name:"Hex", rank:"neophyte", xp:2, cx:711, cy:309,
+    tag:"Inflict a Tilt on a cursed victim or someone who touches you.",
+    stats:{"Cost":"1 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Reflexive (if cursed) / Instant (if not)"},
+    desc:["Impose a Tilt on your target: Arm Wrack, Blinded, Deafened, Insane, Knocked Down, Leg Wrack, Poisoned, or Sick.","Against someone already Cursed by you (or who touches you), you may apply it reflexively for 1 blood. Otherwise you must spend your action and have direct line of sight. The Tilt lasts your Chosen Skill in turns, unless the target resolves it earlier."]},
+  {id:"breeze_of_luck", name:"Breeze of Luck", rank:"neophyte", xp:1, cx:2727, cy:309,
+    tag:"Negate or remove a Tilt on a boon-blessed target.",
+    stats:{"Cost":"1 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor (can be contested)", "Action":"Reflexive (on the spot) / Instant (to remove one)"},
+    desc:["Reflexively activate on someone with an active Boon condition to negate the application of a Tilt (Arm Wrack, Blinded, Deafened, Insane, Knocked Down, Leg Wrack, Poisoned, or Sick). If the Tilt came from a supernatural power, a Clash of Wills takes place.","Alternatively, spend an Instant action to remove a Tilt already in effect from a victim \u2014 in this case the target doesn't need the Boon condition. Requires line of sight."]},
+  {id:"misfortune", name:"Misfortune", rank:"neophyte", xp:1, cx:210, cy:676,
+    tag:"Make the next injury the target takes hit worse.",
+    stats:{"Cost":"1 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Until the target next takes damage"},
+    desc:["Curse the target so any injury becomes worse than it should be \u2014 a glancing blow now lands square in the chest.","The next time the target suffers at least 1 damage during the duration, increase that damage by your Chosen Skill rank (as bashing). Expires at scene's end if unused."]},
+  {id:"calamity", name:"Calamity", rank:"neophyte", xp:2, cx:711, cy:679,
+    tag:"Bind a personal item to curse a target's crucial actions.",
+    stats:{"Cost":"2 Ichor to activate, +1 per use", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant to activate; reflexive to trigger"},
+    desc:["Bind your blood to a personal item tied to your target (a ring, a lock of hair) to curse their actions at the worst moment. The connection lasts as long as you hold the item.","Success: for each Ichor spent, the target's next action fails automatically, regardless of the roll (interfering with a Discipline triggers a Clash of Wills). Exceptional: those failures become dramatic failures. You may hold one item per Chosen Skill dot, cursing multiple targets. Release the item and the curse breaks instantly."]},
+  {id:"jinx", name:"Jinx*", rank:"neophyte", xp:2, cx:1215, cy:675,
+    tag:"Steal a touch of luck \u2014 their roll fails, yours succeeds.",
+    stats:{"Cost":"1 Ichor, 1 Willpower", "Requirement":"Both Hex and Breeze of Luck", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"One scene"},
+    desc:["Steal a measure of fortune: activate on someone you've Cursed (or touch a victim who isn't cursed) to make their next roll fail automatically, while your next roll automatically succeeds (with 1 success).","If you take no further action that scene, you forfeit the benefit; if the target doesn't act again, they're spared. A victim can carry only one Jinx at a time, and you can hold only one unused Jinx-success at a time. (Special prerequisite: this gift needs both Hex and Breeze of Luck.)"]},
+  {id:"serendipity", name:"Serendipity", rank:"neophyte", xp:2, cx:1971, cy:675,
+    tag:"Substitute your Chosen Skill for another of the same type.",
+    stats:{"Cost":"1 Ichor", "Dice":"None", "Action":"Reflexive", "Duration":"One roll"},
+    desc:["When you make a roll, substitute any Skill of the same type (Mental, Physical, or Social) as the one the task calls for \u2014 through some twist of fate your Chosen Skill turns out just as useful as, say, Empathy.","Usable only outside combat, and cannot affect supernatural rolls."]},
+  {id:"stroke_of_luck", name:"Stroke of Luck", rank:"neophyte", xp:2, cx:2727, cy:675,
+    tag:"Reduce the next injury a blessed target takes.",
+    stats:{"Cost":"1 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor (can be contested)", "Action":"Reflexive", "Duration":"Until the target next takes damage"},
+    desc:["Help a target (yourself, or someone under one of your Boons) shrug off injury that would normally topple them.","The next time they take at least 1 damage, reduce it by one step, up to a total equal to your Chosen Skill rank; this cannot reduce aggravated damage. Example: at Chosen Skill 4, 5 bashing becomes 1 bashing; 5 lethal becomes 1 lethal + 4 bashing."]},
+  {id:"unbelievable", name:"Unbelievable...", rank:"scion", xp:3, cx:3480, cy:675,
+    tag:"Grant the Charmed condition to cheat death.",
+    stats:{"Cost":"2 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor (can be contested)", "Action":"Instant", "Duration":"Until used, ends at scene's end"},
+    desc:["An aggressive upgrade over Stroke of Luck that turns a death sentence into a scratch. Grants the target the Charmed condition, usable at any time that scene.","Charmed: magical good fortune \u2014 invoke it reflexively to be spared serious injury (reducing incoming damage to 1), to meet a valuable contact, to avoid the short straw, or to win a game of chance. Neither of you knows exactly how the luck will manifest, only that it will matter."]},
+  {id:"grave_misfortune", name:"Grave Misfortune", rank:"neophyte", xp:3, cx:210, cy:1047,
+    tag:"An upgrade over Misfortune \u2014 a glancing blow crushes bone.",
+    stats:{"Cost":"2 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Until the target next takes damage"},
+    desc:["An upgrade over Misfortune: the next time the target takes at least 1 damage, increase it by your Chosen Skill rank.","The added damage is bashing if all the original damage was bashing, or lethal if even a single point of the original was lethal or aggravated. Expires at scene's end if unused."]},
+  {id:"destinys_ruin", name:"Destiny's Ruin", rank:"scion", xp:3, cx:711, cy:1047,
+    tag:"An upgrade over Evil Eye \u2014 strip successes from the victim.",
+    stats:{"Cost":"3 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["A feared upgrade over Evil Eye. Success: the victim gains the Destiny's Ruin condition, removing half your Chosen Skill rank in successes on all their rolls for the rest of the scene.","Exceptional: the maximum number of successes on any of the target's rolls is 2. Only one instance at a time; it resolves if you lose line of sight or the target rolls a dramatic failure."]},
+  {id:"shared_fate", name:"Shared Fate", rank:"neophyte", xp:2, cx:1215, cy:1047,
+    tag:"Braid two subjects' fates \u2014 harm to one hits the other.",
+    stats:{"Cost":"3 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Braid the fates of two subjects together: whenever one suffers damage, a Tilt, or an unwanted Condition, the other suffers it as well."]},
+  {id:"shifting_the_odds", name:"Shifting the Odds", rank:"neophyte", xp:2, cx:1971, cy:1047,
+    tag:"Let fate guide your steps to whatever you need.",
+    stats:{"Cost":"2 Ichor", "Dice":"None", "Action":"Instant", "Duration":"Night"},
+    desc:["Focus on locating a particular kind of person, place, or thing; fate directs your steps to it unerringly, as soon as possible within the next 24 hours (often immediately, e.g. finding a certain kind of person in a crowd).","It finds someone with a specific Trait, occupation, or context (like \"corrupt cop\"), but only the nearest or most available match \u2014 never a specific named person or object."]},
+  {id:"destinys_bounty", name:"Destiny's Bounty", rank:"scion", xp:3, cx:2727, cy:1047,
+    tag:"An upgrade over Boon \u2014 grant bonus successes.",
+    stats:{"Cost":"3 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor (can be contested)", "Action":"Instant", "Duration":"Scene"},
+    desc:["A coveted upgrade over Boon. Success: the target gains the Destiny's Bounty condition, adding half your Chosen Skill rank as bonus successes on all their rolls for the rest of the scene.","Exceptional: their next roll can critically succeed with 4 successes. Only one instance at a time."]},
+  {id:"extended_fortunes", name:"Extended Fortunes", rank:"elder", xp:1, cx:3480, cy:1047,
+    tag:"Make the Charmed condition last the night.",
+    stats:{"Cost":"+2 Ichor", "Dice":"None", "Action":"Reflexive", "Duration":"Until used, ends at sunrise"},
+    desc:["For an additional 2 Ichor when you use Unbelievable, the granted Charmed condition lasts until sunrise instead of the scene (or until the target decides to use it)."]},
+  {id:"blight_abound", name:"Blight Abound", rank:"scion", xp:3, cx:210, cy:1413,
+    tag:"A curse aura that penalizes enemies around you.",
+    stats:{"Cost":"3 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Focus your power into an aura of disgrace, imposing a penalty to dice pools equal to your Chosen Skill on up to your Chosen Skill in targets around you.","While the aura is active you give up all other uses of Nergal's Favor, and can't activate any other power of this Gift unless you shut it down."]},
+  {id:"twist_of_fate", name:"Twist of Fate", rank:"scion", xp:3, cx:1215, cy:1413,
+    tag:"Alter a roll's outcome up or down at the critical moment.",
+    stats:{"Cost":"3 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Reflexive (1 use per round)"},
+    desc:["Shape outcomes at the critical moment \u2014 usable to debuff Cursed targets or buff Blessed allies (or yourself). Success: shift the affected roll up or down by one degree of success/failure, or add/subtract successes equal to your Chosen Skill (reducing to zero is a simple failure, not a dramatic one). Exceptional: shift by two degrees.","Only affects instant actions (not extended or reflexive). On a contested action, only one contestant's roll is affected. It doesn't use your turn's action and can be used at any point in the turn."]},
+  {id:"can_i_borrow", name:"Can I Borrow This?", rank:"scion", xp:3, cx:1719, cy:1413,
+    tag:"Fate provides temporary Social Merits.",
+    stats:{"Cost":"3 Ichor, 1 Willpower", "Dice":"None", "Action":"Extended (~1 hour wandering the city)", "Duration":"Up to a week, or until used up"},
+    desc:["Gain temporary access to a Social Merit (Ally, Contacts, Mentor, Resources, or Retainer) rated no higher than half your Chosen Skill \u2014 fate guides you to dropped cash, unattended items, or a helpful stranger.","You may benefit from the Merit up to half your Chosen Skill times, after which the money runs out or the convenient ally moves on (unless you buy the Merit with Experiences)."]},
+  {id:"taking_the_ball", name:"Taking the Ball Away", rank:"scion", xp:3, cx:2223, cy:1413,
+    tag:"Strip a target's Social Merits away.",
+    stats:{"Cost":"3 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Extended (30-minute ritual)", "Duration":"Night"},
+    desc:["Using a personal item tied to the target (as with Calamity), hinder their resources: allies suddenly unavailable, contacts unwilling, resources seized.","On success, remove up to your Chosen Skill rank in Social Merits (Ally, Contacts, Mentor, Resources, or Retainer) from the target for the night."]},
+  {id:"bounty_abound", name:"Bounty Abound", rank:"scion", xp:3, cx:3480, cy:1413,
+    tag:"A blessing aura that boosts allies around you.",
+    stats:{"Cost":"3 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor", "Action":"Instant", "Duration":"Scene"},
+    desc:["Focus your power into an aura of good fortune, granting a bonus to dice pools equal to your Chosen Skill on up to your Chosen Skill in allies around you.","While the aura is active you give up all other uses of Nergal's Favor, and can't activate any other power of this Gift unless you shut it down."]},
+  {id:"transference_l", name:"Transference of Fortunes*", rank:"elder", xp:4, cx:210, cy:1779,
+    tag:"Leech fortune from enemies and give it to allies.",
+    stats:{"Cost":"5 Ichor, 1 Willpower", "Requirement":"Both Blight Abound and Bounty Abound", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Merge your aura powers to both curse enemies and bless allies at once: grant a bonus to allies' dice pools and a penalty to enemies'. Total targets equal 2\u00d7 your Chosen Skill, but there must be the same number on each side.","While active you give up all other uses of Nergal's Favor. (Special prerequisite: both Blight Abound and Bounty Abound \u2014 this is the same power reachable from either branch.)"]},
+  {id:"watchful_eye", name:"Watchful Eye", rank:"elder", xp:3, cx:711, cy:1779,
+    tag:"Use Evil Eye reflexively once per turn.",
+    stats:{"Cost":"2 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["You may now invoke Evil Eye reflexively, once per turn."]},
+  {id:"inevitable_karma", name:"Inevitable Karma", rank:"elder", xp:3, cx:1215, cy:1779,
+    tag:"A victim suffers whatever harm they inflict on others.",
+    stats:{"Cost":"5 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["An alternative to Shared Fate: the subject isn't linked to anyone in particular. Instead, she suffers any damage, Tilt, or unwanted Condition she inflicts on others, regardless of whom she harms."]},
+  {id:"strings_of_fate", name:"Strings of Fate", rank:"elder", xp:3, cx:1971, cy:1779,
+    tag:"Decree an event that fate then arranges to happen.",
+    stats:{"Cost":"10 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Extended (1-hour ritual)", "Duration":"One Month"},
+    desc:["Specify an event you wish to happen to the subject. If it could occur without magic or effort on the subject's part, it happens as soon as circumstances allow while the power lasts.","If it needs the subject's participation or a change of circumstance, the power introduces opportunities toward it at least once per week. If the event is simply impossible, nothing happens."]},
+  {id:"booning_presence", name:"Booning Presence", rank:"elder", xp:3, cx:2475, cy:1779,
+    tag:"Use Boon on a single target reflexively.",
+    stats:{},
+    desc:["Using Boon on a single target becomes reflexive (once per turn)."]},
+  {id:"gift_of_the_cat", name:"Gift of the Cat", rank:"elder", xp:3, cx:2979, cy:1779,
+    tag:"Channel stolen luck into the 8-again quality.",
+    stats:{"Cost":"3 Ichor + 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Until next sunrise (or torpor/unconsciousness)"},
+    desc:["Channel luck into your own hands (target yourself, or someone under your Boon). Success: gain the 8-again rule on your rolls, lasting until sunrise or until you expend the maximum affected rolls (equal to your Chosen Skill).","Dramatic failure: you lose the 10-again rule for the rest of the night. A target can only benefit from one instance at a time."]},
+  {id:"transference_r", name:"Transference of Fortunes*", rank:"elder", xp:4, cx:3480, cy:1779,
+    tag:"Leech fortune from enemies and give it to allies.",
+    stats:{"Cost":"5 Ichor, 1 Willpower", "Requirement":"Both Blight Abound and Bounty Abound", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Merge your aura powers to both curse enemies and bless allies at once: grant a bonus to allies' dice pools and a penalty to enemies'. Total targets equal 2\u00d7 your Chosen Skill, but there must be the same number on each side.","While active you give up all other uses of Nergal's Favor. (Special prerequisite: both Blight Abound and Bounty Abound \u2014 this is the same power reachable from either branch.)"]},
+  {id:"scaled_curses", name:"Scaled Curses", rank:"ascendant", xp:3, cx:210, cy:2145,
+    tag:"Curse many targets with a single action.",
+    stats:{"Cost":"4 Ichor", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Apply the Cursed condition to a total of targets equal to your Chosen Skill rank with a single instant action."]},
+  {id:"pariah", name:"Pariah", rank:"ascendant", xp:3, cx:711, cy:2145,
+    tag:"Turn the whole world against the victim.",
+    stats:{"Cost":"10 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Extended (1-hour ritual)", "Duration":"One Month"},
+    desc:["Anyone who meets the subject instinctively feels uncomfortable and treats him with indifference or hostility. His social impression levels drop by one (or he takes a \u2212Chosen Skill penalty to Social actions seeking aid).","Any action aimed at helping the subject suffers the effects of Evil Eye; any action aimed at harming him enjoys the effects of Boon \u2014 from murder to theft to a small inconvenient lie."]},
+  {id:"communal_fortunes", name:"Communal Fortunes", rank:"ascendant", xp:3, cx:1215, cy:2143,
+    tag:"Bind a whole group's fate together.",
+    stats:{"Cost":"8 Ichor, 1 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Place the Shared Fate effect on a whole group \u2014 up to your Chosen Skill rank in subjects. Whenever one suffers damage, a Tilt, or an unwanted Condition, all the others suffer it too."]},
+  {id:"miracle", name:"Miracle", rank:"ascendant", xp:4, cx:1971, cy:2143,
+    tag:"Bend events to your will with Intercessions.",
+    stats:{"Cost":"5 Blood Points", "Action":"Reflexive (per Intercession)"},
+    desc:["Gain a number of Intercessions equal to your Chosen Skill to spend reflexively during the scene, each affecting one subject in sensory range:","1 Intercession \u2014 cause a reasonably likely event (an old man's heart attack; a car hits a pedestrian). +1 Ichor \u2014 a low-probability event (lightning strikes someone on a roof). +1 Willpower and +1 Ichor \u2014 the incredible (a spark blows up a car at a gas station; a man survives a fall from a plane). It never makes the truly impossible possible, but anything with a mundane precedent is fair game."]},
+  {id:"scaled_boons", name:"Scaled Boons", rank:"ascendant", xp:3, cx:2475, cy:2143,
+    tag:"Bless multiple targets at once.",
+    stats:{},
+    desc:["Apply the Boon condition to multiple targets at once \u2014 up to your Chosen Skill rank in targets."]},
+  {id:"improved_gift", name:"Improved Gift", rank:"ascendant", xp:4, cx:2979, cy:2143,
+    tag:"Gift of the Cat now grants the Rote quality.",
+    stats:{},
+    desc:["The evolution of Gift of the Cat: you now gain the Rote Quality on the affected rolls, re-rolling any failed dice."]},
+  {id:"mastery_9again", name:"Mastery (9-again)", rank:"elder", xp:2, cx:3480, cy:2143,
+    tag:"Grant the 9-again quality to your Nergal's Favor rolls.",
+    stats:{},
+    desc:["Grants the 9-again quality to your Nergal's Favor rolls."]},
+  {id:"prometheus_curse", name:"Prometheus Curse", rank:"ancevil", xp:4, cx:711, cy:2508,
+    tag:"Bend reality itself to inflict a bespoke curse.",
+    stats:{"Cost":"50 Ichor, 5 Willpower", "Dice":"Manipulation + Chosen Skill + Nergal's Favor vs Resolve + Blood Potency", "Action":"Extended (1-night ritual)", "Duration":"Special"},
+    desc:["Shift the very fabric of reality to punish someone. The curse must fit within a sentence and can't be too complex, but otherwise almost anything is fair game \u2014 reality bends to your will.","Example: \"You are to be chained to a rock in the Caucasus Mountains, and every day an eagle will come and eat your liver.\" The duration is tied to the curse's wording, from \"until you regret your actions\" to a set number of moon-cycles or the rest of the subject's life."]},
+  {id:"impossibility_dominion", name:"Impossibility Dominion", rank:"ancevil", xp:4, cx:1215, cy:2508,
+    tag:"Rule the fortune of a 5 km area for a decade.",
+    stats:{"Cost":"150 Blood Points, 9 Willpower over 9 nights", "Duration":"10 years"},
+    desc:["Claim dominion over the fortune of a huge area (~5 km radius), spending 150 Blood Points and 9 Willpower over 9 nights. Allies who enter gain the Boon condition; enemies gain Cursed (you may swap which each target gets).","While within the area, once per turn you can force a roll to succeed, fail, critically succeed, or dramatically fail \u2014 or add/subtract successes up to your Chosen Skill. Affecting supernatural powers triggers a Clash of Wills."]},
+  {id:"miracles_abound", name:"Miracles Abound", rank:"ancevil", xp:4, cx:1971, cy:2508,
+    tag:"Nine free Intercessions every scene.",
+    stats:{},
+    desc:["Your luck transcends normal probability, warping reality in your favor \u2014 events that should be impossible consistently break your way.","You always have 9 Intercessions at the start of each scene, with no need to spend Blood Points or actions."]},
+  {id:"tbd", name:"TBD", rank:"ancevil", xp:4, cx:2475, cy:2508, pending:true,
+    tag:"(to be determined)",
+    stats:{},
+    desc:["This gift is still to be determined in the source document."]},
+  {id:"mastery_rote", name:"Mastery (Rote)", rank:"ancevil", xp:4, cx:2979, cy:2508,
+    tag:"Grant the Rote quality to your Nergal's Favor rolls.",
+    stats:{},
+    desc:["Grants the Rote quality to your Nergal's Favor rolls."]},
+  {id:"mastery_8again", name:"Mastery (8-again)", rank:"ascendant", xp:2, cx:3480, cy:2508,
+    tag:"Grant the 8-again quality to your Nergal's Favor rolls.",
+    stats:{},
+    desc:["Grants the 8-again quality to your Nergal's Favor rolls."]},
+];
+
+const EDGES = [
+  ["evil_eye","hex"],
+  ["boon","breeze_of_luck"],
+  ["hex","misfortune"],
+  ["hex","calamity"],
+  ["hex","jinx"],
+  ["breeze_of_luck","jinx"],
+  ["breeze_of_luck","serendipity"],
+  ["breeze_of_luck","stroke_of_luck"],
+  ["stroke_of_luck","unbelievable"],
+  ["misfortune","grave_misfortune"],
+  ["calamity","destinys_ruin"],
+  ["jinx","shared_fate"],
+  ["serendipity","shifting_the_odds"],
+  ["stroke_of_luck","destinys_bounty"],
+  ["unbelievable","extended_fortunes"],
+  ["grave_misfortune","blight_abound"],
+  ["destinys_ruin","watchful_eye"],
+  ["shared_fate","twist_of_fate"],
+  ["shifting_the_odds","can_i_borrow"],
+  ["shifting_the_odds","taking_the_ball"],
+  ["destinys_bounty","booning_presence"],
+  ["destinys_bounty","gift_of_the_cat"],
+  ["extended_fortunes","bounty_abound"],
+  ["blight_abound","transference_l"],
+  ["watchful_eye","pariah"],
+  ["twist_of_fate","inevitable_karma"],
+  ["can_i_borrow","strings_of_fate"],
+  ["taking_the_ball","strings_of_fate"],
+  ["bounty_abound","transference_r"],
+  ["transference_l","scaled_curses"],
+  ["pariah","prometheus_curse"],
+  ["inevitable_karma","communal_fortunes"],
+  ["strings_of_fate","miracle"],
+  ["booning_presence","scaled_boons"],
+  ["gift_of_the_cat","improved_gift"],
+  ["transference_r","mastery_9again"],
+  ["communal_fortunes","impossibility_dominion"],
+  ["miracle","miracles_abound"],
+  ["scaled_boons","tbd"],
+  ["mastery_9again","mastery_8again"],
+  ["mastery_8again","mastery_rote"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.58;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
