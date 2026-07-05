@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Balder's Endurance — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Balder<span class="g">'</span>s Endurance <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Resilience · Tree of Gifts</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"defiance", name:"Defiance", rank:"neophyte", xp:1, cx:4698, cy:211,
+    tag:"Resist Physical Tilts and Conditions that would hinder you.",
+    stats:{"Cost":"Variable (by the Tilt/Condition's severity)", "Dice":"None", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["Spend blood to shrug off Physical Tilts and Conditions that would impair your movement or combat, such as Leg Wrack or Arm Wrack. The blood cost scales with the severity of the affliction.","This does not remove supernatural afflictions beyond physical impediments."]},
+  {id:"shell_of_vishvarupa", name:"Shell of Vishvarupa", rank:"neophyte", xp:1, cx:1935, cy:211,
+    tag:"Prevent your limbs from being chopped off or destroyed.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive"},
+    desc:["Whenever you'd take enough damage for one of your limbs to be cut off, activate this to prevent it.","The limb may still be rendered unusable by damage, but it will not detach from your body, and can be healed with blood as normal."]},
+  {id:"enduring_body", name:"Enduring Body", rank:"neophyte", xp:1, cx:6078, cy:211,
+    tag:"Ignore Wound Penalties when activating Balder's Endurance.",
+    stats:{"Cost":"None", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn (passive at Endurance 5)"},
+    desc:["Whenever you activate another Balder's Endurance power, you can ignore all wound penalties for one turn, fighting and moving as if uninjured.","Upon reaching Endurance 5, this becomes permanently active, letting you disregard wound penalties entirely."]},
+  {id:"spotless_suit", name:"Spotless Suit", rank:"neophyte", xp:1, cx:558, cy:1165, pending:true,
+    tag:"Expand your supernatural resilience to your belongings.",
+    stats:{},
+    desc:["Extend your resilience to your gear and belongings. Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"armor_activation", name:"Armor Activation", rank:"neophyte", xp:2, cx:1935, cy:1165,
+    tag:"Harden your flesh against strikes, gaining supernatural armor.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["Harden your flesh far beyond human possibility. Spend 1 blood point to boost your soak, gaining a bonus equal to your Athletics +1 against lethal or bashing damage, or equal to your Athletics against aggravated damage."]},
+  {id:"the_flesh_denies", name:"The Flesh Denies", rank:"neophyte", xp:2, cx:3316, cy:1165, pending:true,
+    tag:"Better resist attempts to meddle with your body, mundane or not.",
+    stats:{},
+    desc:["Resist attempts to alter or impair your body. This likely corresponds to Unbroken Frame in the source (immunity to crippled limbs and broken bones unless the source wins a Clash of Wills) \u2014 confirm the exact wording."]},
+  {id:"echo_of_resisting", name:"Echo of Resisting", rank:"neophyte", xp:2, cx:4698, cy:1165, pending:true,
+    tag:"Grant the passive benefits of Balder's to another.",
+    stats:{},
+    desc:["Share the passive benefits of Balder's Endurance with another. Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"extra_stamina", name:"Extra Stamina", rank:"neophyte", xp:3, cx:6078, cy:1165,
+    tag:"Add your Athletics rank to your Stamina, increasing health.",
+    stats:{},
+    desc:["Add your ranks in Athletics to your Stamina \u2014 this ignores the usual Hierarchy limits \u2014 increasing your Health."]},
+  {id:"veins_of_iron", name:"Veins of Iron", rank:"neophyte", xp:2, cx:7437, cy:1165,
+    tag:"Decrease the intensity of injuries; downgrade Aggravated to Lethal.",
+    stats:{"Cost":"None", "Action":"Reflexive", "Duration":"Always on"},
+    desc:["Whenever you suffer aggravated damage, downgrade one point of aggravated to lethal per dot of Athletics.","This does not protect against damage from sunlight."]},
+  {id:"aegis_of_endurance", name:"Aegis of Endurance", rank:"scion", xp:3, cx:1938, cy:2122,
+    tag:"Render armor-piercing attacks far less effective.",
+    stats:{"Cost":"1 Blood Point (requires Resilience active)", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["If you've already activated Resilience this turn, spend 1 Blood Point to gain armor-piercing resistance equal to your Athletics dots +1 for one turn, blunting attacks that would bypass your armor."]},
+  {id:"body_of_ananke", name:"Body of Ananke", rank:"scion", xp:2, cx:3316, cy:2124, pending:true,
+    tag:"Body of Ananke.",
+    stats:{},
+    desc:["Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"covenant_of_pain", name:"Covenant of Pain", rank:"neophyte", xp:2, cx:4698, cy:2122, pending:true,
+    tag:"Absorb damage from another, even at a distance.",
+    stats:{},
+    desc:["Take on the damage another would suffer, even from afar. This likely corresponds to the source's draft \"Martyr's Resilience\" (pull damage from another person onto yourself) \u2014 full text pending."]},
+  {id:"rouse_the_nephilim", name:"Rouse the Nephilim", rank:"neophyte", xp:1, cx:6078, cy:2122, pending:true,
+    tag:"Decrease your time spent in torpor.",
+    stats:{},
+    desc:["Shorten your time in torpor. Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"improved_veins_of_iron", name:"Improved Veins of Iron", rank:"neophyte", xp:1, cx:7437, cy:2122,
+    tag:"Improve your power, making Lethal damage Bashing.",
+    stats:{"Cost":"1 BP (turn) / 2 BP (scene); +1 to activate reflexively", "Action":"Reflexive or Instant", "Duration":"1 turn or scene"},
+    desc:["Spend blood to downgrade lethal damage equal to your Athletics rank to bashing damage for one turn (or the whole scene), further protecting you against conventional harm."]},
+  {id:"armor_of_kings", name:"Armor of Kings", rank:"elder", xp:3, cx:1936, cy:3078,
+    tag:"Turn aside blows and shatter the weapons that strike you.",
+    stats:{"Cost":"3 Blood Points", "Dice":"Stamina + Endurance + Blood Potency", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["For one turn, whenever you suffer damage, roll Stamina + Endurance + Blood Potency, gaining automatic successes equal to your soak. The attacker rolls their attack pool with automatic successes equal to their weapon's damage.","If your roll wins, you take no damage and the weapon (or the bones used to attack you) shatter from the impact. Certain weapons may require a Clash of Wills to break."]},
+  {id:"complete_resistance", name:"Complete Resistance", rank:"elder", xp:3, cx:3316, cy:3078, pending:true,
+    tag:"Complete Resistance.",
+    stats:{},
+    desc:["Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"immortal_tenacity", name:"Immortal Tenacity", rank:"scion", xp:3, cx:6076, cy:3078, pending:true,
+    tag:"Immortal Tenacity.",
+    stats:{},
+    desc:["Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"flesh_wound", name:"Flesh Wound", rank:"scion", xp:3, cx:7437, cy:3078,
+    tag:"Take one grievous wound to ignore an attack entirely.",
+    stats:{"Cost":"1 aggravated damage", "Dice":"None", "Action":"Reflexive"},
+    desc:["Once per scene, willingly suffer one point of unsoakable aggravated damage to ignore all damage from a single attack or circumstance, condensing the harm into one grievous wound.","This works against all sources save banes like sunlight or fire, and can't be combined with other Endurance effects. At Endurance 7, it stays active for all damage taken in the turn, not just a single attack."]},
+  {id:"equal_force", name:"Equal Force", rank:"ascendant", xp:3, cx:1936, cy:4035,
+    tag:"Return fully-negated attacks back upon the attacker.",
+    stats:{"Cost":"6 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["An enhanced version of Armor of Kings. If you fully negate all damage from an attack, the attacker suffers the same amount of damage they would have inflicted upon you \u2014 reflected back with full force."]},
+  {id:"weight_of_ages", name:"Weight of Ages", rank:"ascendant", xp:3, cx:3316, cy:4035, pending:true,
+    tag:"Weight of Ages.",
+    stats:{},
+    desc:["Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"hollow_vigil", name:"Hollow Vigil", rank:"elder", xp:2, cx:6076, cy:4035, pending:true,
+    tag:"Hollow Vigil.",
+    stats:{},
+    desc:["Not detailed in the source document yet \u2014 full text pending."]},
+  {id:"resilience", name:"Resilience", rank:"elder", xp:3, cx:7437, cy:4035,
+    tag:"Halve any damage you take for a turn.",
+    stats:{"Cost":"2 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["Upon activation, halve any damage you would have taken (after accounting for armor, rounding up) for one turn."]},
+  {id:"juggernauts_gait", name:"Juggernaut's Gait", rank:"ancevil", xp:4, cx:1936, cy:4989,
+    tag:"Become immune to all damage for a turn.",
+    stats:{"Cost":"10 Blood Points, 1 Willpower (5 BP for enhanced rolls)", "Dice":"None", "Action":"Instant", "Duration":"1 turn"},
+    desc:["Become an unstoppable force: for one turn you are immune to all damage, moving freely through combat without fear of injury.","(If an opponent attacks with a supernatural source, additional rules apply \u2014 the source text is cut off at this point.)"]},
+  {id:"everlasting_flesh", name:"Everlasting Flesh", rank:"ascendant", xp:3, cx:7437, cy:4989,
+    tag:"Suffer no damage outside combat; limbs become indestructible.",
+    stats:{"Cost":"None", "Dice":"None", "Duration":"Permanent"},
+    desc:["Achieve a resilience that makes you impervious to all but the most extreme conditions. While active, you suffer no damage from any source outside of combat, and your limbs become completely indestructible, functioning through even the most brutal assaults."]},
+];
+
+const EDGES = [
+  ["defiance","shell_of_vishvarupa"],
+  ["defiance","enduring_body"],
+  ["shell_of_vishvarupa","armor_activation"],
+  ["enduring_body","extra_stamina"],
+  ["armor_activation","spotless_suit"],
+  ["armor_activation","the_flesh_denies"],
+  ["armor_activation","aegis_of_endurance"],
+  ["extra_stamina","echo_of_resisting"],
+  ["extra_stamina","veins_of_iron"],
+  ["extra_stamina","rouse_the_nephilim"],
+  ["the_flesh_denies","body_of_ananke"],
+  ["echo_of_resisting","covenant_of_pain"],
+  ["veins_of_iron","improved_veins_of_iron"],
+  ["aegis_of_endurance","armor_of_kings"],
+  ["body_of_ananke","complete_resistance"],
+  ["rouse_the_nephilim","immortal_tenacity"],
+  ["improved_veins_of_iron","flesh_wound"],
+  ["armor_of_kings","equal_force"],
+  ["complete_resistance","weight_of_ages"],
+  ["immortal_tenacity","hollow_vigil"],
+  ["flesh_wound","resilience"],
+  ["equal_force","juggernauts_gait"],
+  ["resilience","everlasting_flesh"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.21;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
