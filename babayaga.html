@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Baba Yaga's Fog — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Baba Yaga<span class="g">'</span>s Fog <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Chimerstry &amp; Nightmare · Tree of Gifts</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"minor_delusion", name:"Minor Delusion", rank:"neophyte", xp:1, cx:369, cy:141,
+    tag:"Alter a small detail about the scene in someone's mind.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene, or until dispelled by disbelief or distance"},
+    desc:["Change a small detail of the current scene in the mind of the target."]},
+  {id:"dauntless_spirit", name:"Dauntless Spirit", rank:"neophyte", xp:1, cx:2349, cy:141,
+    tag:"Protect yourself against effects of Baba Yaga's Fog.",
+    stats:{"Cost":"0 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["Attempts to use Baba Yaga's Fog against you are hindered by your own mastery of Fog. If the roll is contested, you add your Subterfuge rating to your attempts to resist."]},
+  {id:"veil_of_stillness", name:"Veil of Stillness", rank:"neophyte", xp:2, cx:4104, cy:141,
+    tag:"Create stationary illusions affecting any of the 5 senses.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog", "Action":"Instant", "Duration":"Scene, or until dispelled by disbelief or distance"},
+    desc:["Create a stationary illusion (up to Size 5) affecting any of the five senses. It appears real until a target interacts with or perceives clear falsehoods.","If a target tries to disbelieve, spend a Willpower point to force a Perception check against your activation successes. Modifiers apply for the victim's familiarity with the location (Local +4, Visitor +2, Passerby +0) and the illusion's plausibility (Expected \u22123, Plausible +0, Borderline Impossible +3)."]},
+  {id:"haunting_delusion", name:"Haunting Delusion", rank:"neophyte", xp:2, cx:369, cy:798,
+    tag:"Make a target believe something unreal.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Instill a specific delusion in a target's mind, forcing them to adopt a particular belief (\"Your friends hate you,\" \"The building is on fire\"). If you win, they gain the Delusional Condition, clinging to the belief for the scene.","You define the delusion but can't dictate the victim's precise reactions, and it can't incite violence or self-harm."]},
+  {id:"extended_haunting", name:"Extended Haunting", rank:"neophyte", xp:1, cx:1389, cy:798,
+    tag:"Increase the duration of the delusion you inflict.",
+    stats:{"Cost":"+1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"Until sunrise"},
+    desc:["For an additional Blood Point, the duration of Haunting Delusion lasts until sunrise."]},
+  {id:"wet_dream", name:"Wet Dream", rank:"neophyte", xp:1, cx:369, cy:1452,
+    tag:"Cause strange dreams on your target.",
+    stats:{"Cost":"1 Vitae", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Contested; resistance reflexive"},
+    desc:["Plague the victim's sleep with frightening and arousing dreams. If successful, when they next sleep they gain both the Spooked and Swooning Conditions (you choose the subject of each). The victim sheds each Condition individually.","(Costs 2 Experiences to learn.)"]},
+  {id:"sympathetic_agony", name:"Sympathetic Agony", rank:"neophyte", xp:1, cx:1389, cy:1452,
+    tag:"Shift the pain from your own wounds to your enemies.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Shift your pain to your enemies, letting you keep fighting despite grievous wounds. Each success lets you ignore wound penalties from one health level of damage and inflict a phantom wound on your target (whose penalties are based on the sum of real and phantom damage).","Affects one target at a time and doesn't heal or inflict real injuries. You may cancel and re-invoke it against a new target."]},
+  {id:"nightmare_curse", name:"Nightmare Curse", rank:"neophyte", xp:1, cx:369, cy:2106,
+    tag:"Make your victims suffer from Nightmares.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Nights equal to Subterfuge"},
+    desc:["Create an image of the victim's greatest fear to plague them during rest (only they can perceive it, but it seems very real). The victim must be in line of sight. The illusion vanishes at sunrise after its final night.","While plagued, the victim suffers the 2-pt Nightmare Flaw (if they already had it, increase the required successes by 1 on the self-control roll)."]},
+  {id:"sensory_overload", name:"Sensory Overload", rank:"neophyte", xp:2, cx:1389, cy:2106,
+    tag:"Incapacitate a target through overstimulating his senses.",
+    stats:{"Cost":"3 Blood Points", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Condition":"Victim under your Delusional Condition", "Action":"Instant"},
+    desc:["Overstimulate all five senses to physically incapacitate a target \u2014 they may stay conscious but can't move or speak coherently, cut off from the world save through their screams.","The victim can't take any actions for a number of turns equal to your Subterfuge. Exceptional: they also develop a mild derangement for the rest of the night. Damage equal to or greater than the target's Stamina ends it early."]},
+  {id:"call_forth_nightmare", name:"Call Forth the Nightmare", rank:"scion", xp:3, cx:369, cy:2754,
+    tag:"Call a deep-seated fear into an intangible entity.",
+    stats:{"Cost":"5 Blood Points, 1 Willpower", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Indefinite"},
+    desc:["Draw a spirit into existence from the target's deep-seated fears. It works like a spirit (Twilight Form only), built as a Rank 1 entity with an Influence of Fear.","It's not under your command but is well-disposed to hound, torment, or scare the target it was drawn from (or others with similar phobias); it can be convinced with Social Maneuvering or mental Disciplines, but is immune to Baba Yaga's Fog. It grows more powerful with your Subterfuge (Rank 2 at Subterfuge 6, up to Rank 4 at Subterfuge 9)."]},
+  {id:"phantasmal_agony", name:"Phantasmal Agony", rank:"scion", xp:3, cx:1389, cy:2754,
+    tag:"Inflict illusory wounds that feel real and cause trauma.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Condition":"Victim under your Delusional Condition", "Action":"Instant", "Duration":"Until sunrise or dispelled by rational disbelief"},
+    desc:["Inflict illusory wounds that feel real, causing Subterfuge points of lethal damage. Secondary effects (frenzy from illusory fire, etc.) may occur. You may inflict fewer points or downgrade to bashing (announced before the roll).","This incapacitates but doesn't kill: a mortal or vampire who \"dies\" falls unconscious (or torpor) until sunrise, or until convinced the damage wasn't real."]},
+  {id:"gaze_of_the_unthinkable", name:"Gaze of the Unthinkable", rank:"elder", xp:3, cx:2347, cy:2754,
+    tag:"Strip a target of their willpower with visions.",
+    stats:{"Cost":"3 Blood Points, 1 Willpower", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Condition":"Victim under your Delusional Condition", "Action":"Instant", "Duration":"Instantaneous"},
+    desc:["Show the victim horrors beyond comprehension, demoralizing them and inflicting Subterfuge points of Willpower loss (returned when they realize it was an illusion).","Exceptional: the victim also gains the Fugue Condition for the rest of the night. Dramatic failure: you've looked too closely into dark places and gain the Frightened Condition."]},
+  {id:"fata_amria", name:"Fata Amria", rank:"ascendant", xp:3, cx:370, cy:3414,
+    tag:"Lock a manifesting curse onto a target.",
+    stats:{"Cost":"5 Blood Points, 1 Willpower", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Nights equal to Subterfuge"},
+    desc:["Verbally curse a target, locking an illusory effect to them that manifests from time to time. Effects by successes: 1 = lose 2 dice from a pool; 2 = lose 4 dice; 3 = auto-fail a certain action at a pinnacle moment; 4 = auto-fail certain actions in any stressful situation; 5 = fail all actions involving a given Attribute, Ability, or Discipline.","A Fata Amria is only as successful as the target believes: if they deeply fear the curse, it manifests repeatedly until they master their fear."]},
+  {id:"visions_from_the_asura", name:"Visions from the Asura", rank:"ascendant", xp:4, cx:370, cy:4068,
+    tag:"Make a victim question what's real and what's illusion.",
+    stats:{"Cost":"5 Blood Points, 2 Willpower", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Extended", "Duration":"1 night per Subterfuge"},
+    desc:["Afflict a victim with random illusions (all senses) \u2014 a servant approaching, a door where there's a wall, a smell of burning \u2014 that always vanish once she reacts, proving they were illusions. No more than twice a night, horrid events occur (a grisly murder around a corner, an attack by a hideous monster).","The victim comes to question every event, and others question her sanity. Observe the target 5 minutes, then roll (\u22122 if she has derangements; +2 if Humanity 3 or less). Lasts 1 night +1 per success; each night she loses a Willpower, and at 0 Willpower she develops a derangement. The only real defense is equal-or-superior Athena's Mirror."]},
+  {id:"fantasy_world", name:"Fantasy World", rank:"elder", xp:3, cx:1389, cy:3414,
+    tag:"Create an illusory world in another being's mind.",
+    stats:{"Cost":"5 Blood Points, 1 Willpower", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Condition":"Victim under your Delusional Condition", "Action":"Extended"},
+    desc:["Create an illusory world in a victim's mind \u2014 wasting away in a dungeon while believing himself a mighty king. You decide the experience, from nightmare to paradise. Successes set how often the victim may roll Wits + Composure (target = your Manipulation + Subterfuge) to detect the illusion.","Frequency by successes: 1 = every turn, 2 = every scene, 3 = every hour, 4 = every 6 hours, 5 = every night. A victim who recognizes his predicament can spend a Willpower point to shatter the fantasy."]},
+  {id:"madness_specialist", name:"Madness Specialist", rank:"elder", xp:3, cx:2347, cy:3406,
+    tag:"Greatly extend the duration of Haunting Delusion.",
+    stats:{"Cost":"+2 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"Nights equal to Subterfuge"},
+    desc:["Spend an additional Blood Point when using Haunting Delusion to make its duration nights equal to your Subterfuge rank."]},
+  {id:"terror_made_flesh", name:"Terror Made Flesh", rank:"ascendant", xp:4, cx:2347, cy:4059,
+    tag:"Spread illusory damage to a whole group.",
+    stats:{"Cost":"1 Willpower, 3 Blood Points (first target) + 1 Blood Point each after", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Resolve + Blood Potency", "Action":"Instant", "Duration":"Until sunrise or until the illusion fades"},
+    desc:["Like Phantasmal Agony, but spread to multiple targets at once, and victims no longer need the Delusional Condition. Each target suffers a point of illusory lethal damage per success, with possible secondary effects (frenzy, shock).","This incapacitates but doesn't kill: any \"death\" causes unconsciousness or torpor until sunrise, or until the victim can rationally believe it was an illusion."]},
+  {id:"phantom_in_motion", name:"Phantom in Motion", rank:"neophyte", xp:1, cx:4104, cy:798,
+    tag:"With concentration, bring motion to your illusions.",
+    stats:{"Cost":"1 Blood Point", "Action":"Instant", "Duration":"Scene"},
+    desc:["Add motion to your illusions. While concentrating, animate them to perform actions; once set, they continue in limited action even without your focus \u2014 walking, talking briefly, or repeating a movement.","The animated illusion can't be controlled or altered once you stop concentrating on it."]},
+  {id:"dynamic_illusions", name:"Dynamic Illusions", rank:"neophyte", xp:1, cx:3258, cy:1452,
+    tag:"Make an illusion that can move without concentration.",
+    stats:{},
+    desc:["Your illusion can follow an object or person and move on its own, without requiring your concentration."]},
+  {id:"copycat", name:"Copycat", rank:"neophyte", xp:2, cx:3258, cy:2106,
+    tag:"Make someone look like another person.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Perception", "Action":"Instant", "Duration":"Scene"},
+    desc:["Copy your own or someone else's appearance onto a victim, creating an illusory duplicate \u2014 identical twins down to the last stitch of clothing, which can even fool technology.","If the victim is mortal, they exhibit the same signs of vampirism as you (no heart rate or breathing)."]},
+  {id:"adaptable_illusions", name:"Adaptable Illusions", rank:"scion", xp:2, cx:3256, cy:2760,
+    tag:"Illusions adapt and react to the environment on their own.",
+    stats:{},
+    desc:["Imbue a fragment of consciousness into an illusion, allowing it to adapt and react to its environment on its own."]},
+  {id:"legion_of_phantoms", name:"Legion of Phantoms", rank:"elder", xp:3, cx:3256, cy:3406,
+    tag:"Summon numerous independent moving apparitions.",
+    stats:{"Cost":"1 Blood Point per moving apparition after the first", "Action":"Instant", "Duration":"Scene or until dispelled"},
+    desc:["Summon multiple moving illusions (max equal to your Subterfuge), each appearing independent and adding to overwhelming chaos. They last per Phantom in Motion's conditions and can be made to last until sunrise with Enduring Mirage.","Each apparition must be disbelieved separately, adding resilience and complexity to the trick."]},
+  {id:"army_of_one", name:"Army of One", rank:"elder", xp:3, cx:3256, cy:4068,
+    tag:"Create illusory duplicates of yourself.",
+    stats:{"Cost":"1 Blood Point per duplicate", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog vs Perception", "Action":"Instant", "Duration":"Scene"},
+    desc:["Create illusory duplicates of yourself (up to your Subterfuge), each capable of independent movement \u2014 send your likeness into ambushes or feign superior numbers. They either take the appearance onlookers most expect, or counterfeit your exact behavior.","Spend an action to control an illusion's specific movements; they can attack, dealing bashing damage if a target believes they were hit (but a struck target then ceases to be affected, as does anyone who sees a phantom fail to interact with a physical object). You must see an illusion to issue mental commands; out of sight, it follows its last orders."]},
+  {id:"major_illusion", name:"Major Illusion", rank:"neophyte", xp:2, cx:5886, cy:798,
+    tag:"Create larger illusions.",
+    stats:{"Cost":"+1 Blood Point", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog", "Action":"Instant", "Duration":"Scene, or until dispelled by disbelief or distance"},
+    desc:["Increase the possible size of your illusions. Each success creates an illusion covering an area (in yards/meters) equal to your Subterfuge per success.","Spend additional Blood Points to increase the area further (as if 1 extra success per Blood Point)."]},
+  {id:"solid_illusions", name:"Solid Illusions", rank:"neophyte", xp:2, cx:5886, cy:1452,
+    tag:"Give an illusion substance to affect the environment.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["Give phantoms enough substance to affect the environment \u2014 an illusory hammer pounds a nail, an illusory knife cuts meat. Limited to simple objects no larger than yourself, with no more than two moving parts, and can't mimic chemical reactions.","Objects have the Durability, damage rating, and Size of the real thing but only 1 Structure. They're not \"real\" for supernatural properties (an illusory silver bullet won't be lethal to a werewolf)."]},
+  {id:"craft_ephemera", name:"Craft Ephemera", rank:"elder", xp:3, cx:5886, cy:2106,
+    tag:"Give your illusions functional, undeniable substance.",
+    stats:{"Cost":"+2 Blood Points, 1 Willpower", "Dice":"None", "Action":"Instant", "Duration":"Same as Illusion"},
+    desc:["Give weight and substance to an illusion, making it functionally real \u2014 disbelief is no more effective than ignoring reality (it fades at sunrise). Often used to craft weapons or precious artifacts to dupe fools.","Objects can be no larger than you and must be inanimate (moving parts allowed; complex objects need an Intelligence + Crafts roll). It can't be disbelieved, but anyone who notices via Athena's Mirror it derives from an illusion may spend Willpower to ignore its effects. It remains until destroyed normally or the illusion ends, then fades to mist."]},
+  {id:"realitys_veil", name:"Reality's Veil", rank:"ancevil", xp:4, cx:5886, cy:2754,
+    tag:"Turn one of your illusions into permanent reality.",
+    stats:{"Cost":"15 Blood Points, 1 Willpower", "Action":"Instant"},
+    desc:["Turn one of your illusions \u2014 no matter how impossible \u2014 into permanent reality, bending the universe to your will and locking it into existence.","The illusion remains in the world and behaves as if real, with all properties intact as you envisioned. Only you or a higher power may dispel it."]},
+  {id:"enduring_mirage", name:"Enduring Mirage", rank:"neophyte", xp:2, cx:4104, cy:1452,
+    tag:"Make your illusions linger in place even after you leave.",
+    stats:{"Cost":"+1 Blood Point", "Action":"Instant", "Duration":"Until sunrise"},
+    desc:["Illusions created by Veil of Stillness no longer require your presence \u2014 they persist independently until you dismiss them or until sunrise."]},
+  {id:"eventide_strength", name:"Eventide Strength", rank:"scion", xp:2, cx:4105, cy:2095,
+    tag:"Make your illusions less vulnerable to sunlight.",
+    stats:{"Cost":"+2 Blood Points", "Dice":"None", "Action":"Instant", "Duration":"Same as Illusion"},
+    desc:["Reinforce the maya in your illusions against the sun. Spend two additional Blood Points when creating an illusion to let it function for a minute per success rolled on the activation.","This can't be reactivated on the same illusion to further increase its exposure time."]},
+  {id:"enhanced_eventide_strength", name:"Enhanced Eventide Strength", rank:"ascendant", xp:2, cx:4105, cy:2754,
+    tag:"Make an illusion impervious to sunlight.",
+    stats:{"Cost":"+5 Blood Points, 1 Willpower", "Dice":"None", "Action":"Instant", "Duration":"Same as the affected Illusion"},
+    desc:["Make the illusion completely impervious to the effects of sunlight."]},
+  {id:"subtle_spy", name:"Subtle Spy", rank:"neophyte", xp:2, cx:5010, cy:1452,
+    tag:"Absorb information through your illusions.",
+    stats:{"Cost":"2 Blood Points", "Dice":"None", "Action":"Instant", "Duration":"Same as Illusion"},
+    desc:["Imbue part of your consciousness into a perceivable illusion (a lamp, a person), granting it a small independent intelligence. When you dispel it, draw that intelligence back and learn everything it witnessed as if firsthand.","An object illusion senses from its location; a mobile one can be programmed like an Apparition and can knowingly make small changes (step around an obstacle, answer a simple question). You don't know what's happening around it unless present; if it's dispelled or disbelieved before you reincorporate it, its knowledge is lost."]},
+  {id:"durable_illusions", name:"Durable Illusions", rank:"elder", xp:3, cx:5010, cy:2095,
+    tag:"Make illusions last for many nights.",
+    stats:{"Cost":"+2 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"Subterfuge dots"},
+    desc:["Your illusions are no longer limited to a single night \u2014 they can exist for a number of nights equal to your Subterfuge dots.","Spend an additional Blood Point when creating an illusion and its duration is counted in days equal to your Subterfuge dots instead."]},
+  {id:"spectral_dominion", name:"Spectral Dominion", rank:"ascendant", xp:4, cx:5010, cy:2749,
+    tag:"Sustain illusions at a distance, without cost.",
+    stats:{},
+    desc:["Achieve supreme mastery over illusions: you no longer spend Willpower or Blood Points for Veil of Stillness, Phantom in Motion, or Enduring Mirage, and can direct a number of illusions equal to your Manipulation without intense concentration.","You can maintain illusions as long as they stay within your Baba Yaga's Fog rank in miles (you don't gain a way to perceive events near them). The illusions even manifest across realms, becoming visible in the Shadowlands and Penumbra."]},
+  {id:"suspension_of_disbelief", name:"Suspension of Disbelief", rank:"scion", xp:3, cx:6712, cy:2106,
+    tag:"Make onlookers accept even surreal illusions as real.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog \u2212 target's modifier vs Perception", "Action":"Instant", "Duration":"Scene"},
+    desc:["Imbue your Fog with a sense of reality that makes viewers accept even strange illusions as real. If wildly unrealistic (a fire-breathing dragon, gray aliens), once out of sight the observer questions and eventually denies it ever happened.","Target modifier: 0 = one target, \u22121 = up to 5, \u22122 = up to 10, \u22123 = up to 25, \u22124 = up to 50, \u22125 = everyone who can see it."]},
+  {id:"interrupt_reality", name:"Interrupt Reality", rank:"scion", xp:2, cx:6712, cy:2754,
+    tag:"Make ordinary things look unreal, inspiring doubt.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Manipulation + Subterfuge + Baba Yaga's Fog \u2212 target's modifier vs Perception", "Action":"Instant", "Duration":"Scene"},
+    desc:["Make an ordinary object or person look extraordinary, inspiring doubt about its reality \u2014 a normal sword shining with brilliant light, a man looking and sounding so unreal that people refuse to believe he's really there.","Anyone who sees the affected thing writes it off as a hallucination (Athena's Mirror reveals the truth unless it can't penetrate your Fog). Target modifier: 0 = one inanimate object, \u22121 = several objects or one conscious target, \u22122 = an area or small group, \u22123 = all objects in an area, \u22124 = an entire crowd."]},
+  {id:"mastery_9again", name:"Mastery (9-again)", rank:"elder", xp:3, cx:7624, cy:2760,
+    tag:"Grant the 9-again quality to your Baba Yaga's Fog rolls.",
+    stats:{},
+    desc:["Grants the 9-again quality to your Baba Yaga's Fog rolls."]},
+  {id:"mastery_8again", name:"Mastery (8-again)", rank:"ascendant", xp:4, cx:7624, cy:3414,
+    tag:"Grant the 8-again quality to your Baba Yaga's Fog rolls.",
+    stats:{},
+    desc:["Grants the 8-again quality to your Baba Yaga's Fog rolls."]},
+  {id:"mastery_rote", name:"Mastery (Rote)", rank:"ancevil", xp:5, cx:7624, cy:4071,
+    tag:"Grant the Rote quality to your Baba Yaga's Fog rolls.",
+    stats:{},
+    desc:["Grants the Rote quality to your Baba Yaga's Fog rolls."]},
+];
+
+const EDGES = [
+  ["minor_delusion","dauntless_spirit"],
+  ["veil_of_stillness","dauntless_spirit"],
+  ["minor_delusion","haunting_delusion"],
+  ["haunting_delusion","extended_haunting"],
+  ["haunting_delusion","wet_dream"],
+  ["haunting_delusion","sympathetic_agony"],
+  ["wet_dream","nightmare_curse"],
+  ["sympathetic_agony","sensory_overload"],
+  ["nightmare_curse","call_forth_nightmare"],
+  ["sensory_overload","phantasmal_agony"],
+  ["call_forth_nightmare","phantasmal_agony"],
+  ["phantasmal_agony","gaze_of_the_unthinkable"],
+  ["call_forth_nightmare","fata_amria"],
+  ["phantasmal_agony","fantasy_world"],
+  ["gaze_of_the_unthinkable","madness_specialist"],
+  ["fata_amria","visions_from_the_asura"],
+  ["madness_specialist","terror_made_flesh"],
+  ["veil_of_stillness","phantom_in_motion"],
+  ["veil_of_stillness","major_illusion"],
+  ["phantom_in_motion","dynamic_illusions"],
+  ["phantom_in_motion","enduring_mirage"],
+  ["phantom_in_motion","subtle_spy"],
+  ["dynamic_illusions","copycat"],
+  ["copycat","adaptable_illusions"],
+  ["adaptable_illusions","legion_of_phantoms"],
+  ["legion_of_phantoms","army_of_one"],
+  ["enduring_mirage","eventide_strength"],
+  ["eventide_strength","enhanced_eventide_strength"],
+  ["subtle_spy","durable_illusions"],
+  ["durable_illusions","spectral_dominion"],
+  ["major_illusion","solid_illusions"],
+  ["solid_illusions","craft_ephemera"],
+  ["solid_illusions","suspension_of_disbelief"],
+  ["craft_ephemera","realitys_veil"],
+  ["suspension_of_disbelief","interrupt_reality"],
+  ["mastery_9again","mastery_8again"],
+  ["mastery_8again","mastery_rote"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.29;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
