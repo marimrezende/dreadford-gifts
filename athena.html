@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Athena's Mirror — Gifts of the Blood</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0607;
+    --bg2:#150a0c;
+    --ink:#f3e7e0;
+    --ink-dim:#b6968c;
+    --line:#3a2420;
+    --line-lit:#c0313f;
+    --vein:#5f1a22;
+    --vein-hot:#cf3a44;
+    --seal:#8a1418;
+    /* "Shades of Fives" — bright & fresh at the bottom, old & dark at the top */
+    --neophyte:#f73f4b;   /* light coral-red */
+    --scion:#f50e1d;      /* fire red        */
+    --elder:#7e0912;      /* deep red        */
+    --ascendant:#2a0206;  /* darker maroon   */
+    --ancevil:#0e0103;    /* near-black, ashen */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:radial-gradient(120% 120% at 50% -10%, #241016 0%, #100b0d 55%, #0a070a 100%);color:var(--ink);font-family:"Spectral",Georgia,serif;overflow:hidden;-webkit-text-size-adjust:100%}
+
+  /* ---- overlays ---- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:18px;padding:14px 20px;pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,4,3,.92) 0%, rgba(6,4,3,.55) 65%, transparent 100%)}
+  .brand{pointer-events:none}
+  .brand h1{font-family:"Cinzel",serif;font-weight:700;letter-spacing:.06em;margin:0;font-size:19px;color:#f0ddc9;text-shadow:0 1px 0 #000}
+  .brand h1 .g{color:var(--line-lit)}
+  .brand p{margin:2px 0 0;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .topbar .back{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;font-family:"Cinzel",serif;
+    font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:#d9b48c;
+    border:1px solid #5a3324;border-radius:3px;padding:8px 13px;background:rgba(20,11,8,.6);transition:.15s;white-space:nowrap}
+  .topbar .back:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  @media (max-width:720px){ .topbar .back .lb{display:none} }
+
+  .search{margin-left:auto;pointer-events:auto;position:relative}
+  .search input{font-family:"Spectral",serif;font-size:14px;color:var(--ink);background:rgba(20,11,8,.9);border:1px solid var(--line);
+    border-radius:2px;padding:8px 12px 8px 32px;width:210px;outline:none;transition:border-color .15s,box-shadow .15s}
+  .search input:focus{border-color:var(--line-lit);box-shadow:0 0 0 2px rgba(200,112,60,.18)}
+  .search input::placeholder{color:#8a7160;font-style:italic}
+  .search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:#8a7160}
+
+  .legend{position:fixed;left:20px;bottom:18px;z-index:30;display:flex;flex-wrap:wrap;gap:6px 14px;max-width:min(92vw,560px);
+    padding:11px 14px;background:rgba(10,6,4,.82);border:1px solid #2c1c14;border-radius:3px;backdrop-filter:blur(3px);pointer-events:auto}
+  .legend .lg{display:flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.03em;color:var(--ink-dim);cursor:pointer;user-select:none}
+  .legend .sw{width:13px;height:13px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .legend .lg.off{opacity:.32}
+  .legend .lg:hover{color:var(--ink)}
+
+  .controls{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;flex-direction:column;gap:7px}
+  .controls button{width:38px;height:38px;font-size:18px;font-family:"Cinzel",serif;color:var(--ink);background:rgba(20,11,8,.9);
+    border:1px solid var(--line);border-radius:3px;cursor:pointer;line-height:1;display:grid;place-items:center;transition:.15s}
+  .controls button:hover{border-color:var(--line-lit);color:#fff;background:#20120c}
+  .controls .fit{font-size:11px;letter-spacing:.05em}
+
+  .hint{position:fixed;left:50%;top:64px;transform:translateX(-50%);z-index:25;font-size:12px;color:#7d6656;letter-spacing:.05em;
+    pointer-events:none;opacity:1;transition:opacity .6s}
+  .hint.gone{opacity:0}
+
+  /* ---- canvas ---- */
+  .viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+  .viewport.drag{cursor:grabbing}
+  .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  svg.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  .edge{fill:none;stroke:var(--vein);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+  .edge.hot{stroke:var(--vein-hot);stroke-width:5}
+
+  .node{position:absolute;width:260px;height:88px;border-radius:5px;padding:9px 12px;cursor:pointer;
+    display:flex;flex-direction:column;justify-content:center;text-align:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.14);transition:transform .12s ease, box-shadow .12s ease, filter .12s ease;}
+  .node:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
+  .node .nm{font-family:"Cinzel",serif;font-weight:600;font-size:14.5px;line-height:1.12;letter-spacing:.01em}
+  .node .tg{font-size:11.5px;line-height:1.2;margin-top:4px;opacity:.82;font-style:italic}
+  .node .xp{position:absolute;top:-9px;right:-9px;min-width:24px;height:24px;padding:0 5px;border-radius:13px;
+    background:#160b0a;border:1.5px solid var(--line-lit);color:#f3ddd4;font-family:"Cinzel",serif;font-weight:700;font-size:12.5px;
+    display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .node .chk{position:absolute;top:8px;left:8px;width:13px;height:13px;border-radius:2px;background:rgba(255,255,255,.9);
+    box-shadow:0 0 0 1px rgba(0,0,0,.3);opacity:.55}
+  .node.dim{filter:grayscale(.6) brightness(.5);opacity:.5}
+  .node.match{outline:2px solid #fff;outline-offset:2px}
+  .node.active{outline:2px solid #fff;outline-offset:2px}
+
+  /* ---- detail card ---- */
+  .card{position:fixed;z-index:40;width:340px;max-width:calc(100vw - 28px);max-height:min(78vh,620px);overflow:hidden;
+    background:linear-gradient(180deg,#1b100a,#120a07);border:1px solid #3a2519;border-radius:6px;
+    box-shadow:0 18px 50px rgba(0,0,0,.7);display:none;flex-direction:column}
+  .card.show{display:flex}
+  .card .head{padding:15px 18px 13px;border-bottom:1px solid #2c1c13;position:relative}
+  .card .head .rankbar{height:4px;border-radius:2px;margin-bottom:11px;width:54px}
+  .card h2{font-family:"Cinzel",serif;font-size:18px;font-weight:700;margin:0;line-height:1.12;letter-spacing:.01em;color:#f4e6d6;padding-right:26px}
+  .card .sub{margin-top:5px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+  .card .sub b{color:var(--line-lit);font-weight:600}
+  .card .close{position:absolute;top:12px;right:12px;width:24px;height:24px;border:none;background:none;color:#7d6656;font-size:20px;
+    cursor:pointer;line-height:1;display:none}
+  .card .body{padding:14px 18px 18px;overflow-y:auto;font-size:14px;line-height:1.5}
+  .card .stats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .card .stats .st{font-size:11.5px;letter-spacing:.02em;padding:4px 9px;border:1px solid #3a2519;border-radius:12px;color:var(--ink);background:rgba(216,84,78,.10)}
+  .card .stats .st b{color:var(--line-lit);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.06em;margin-right:4px}
+  .card .body p{margin:0 0 9px}
+  .card .body p:last-child{margin-bottom:0}
+  .card .body .lead{color:#e9d6c4}
+  .card .body .pending{color:#d98d84;font-style:italic}
+  .card .body::-webkit-scrollbar{width:8px}
+  .card .body::-webkit-scrollbar-thumb{background:#3a2519;border-radius:4px}
+
+  @media (max-width:720px){
+    .brand h1{font-size:16px}
+    .brand p{font-size:10.5px;letter-spacing:.1em}
+    .search{display:none}
+    .hint{display:none}
+    .card{left:0!important;right:0;bottom:0;top:auto!important;width:100%;max-width:100%;max-height:70vh;border-radius:12px 12px 0 0;
+      border-bottom:none}
+    .card .close{display:block}
+    .legend{left:10px;right:64px;bottom:10px;max-width:none}
+    .controls{right:10px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="index.html" title="Back to compendium"><span class="ar">←</span><span class="lb">Compendium</span></a>
+    <div class="brand">
+      <h1>Athena<span class="g">'</span>s Mirror <span style="color:#6f5647">·</span> <span style="font-weight:500;font-size:15px">Gifts of the Blood</span></h1>
+      <p>Auspex · Tree of Gifts</p>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="q" type="text" placeholder="Search a gift…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Hover a gift · drag to pan · scroll to zoom</div>
+
+  <div class="viewport" id="vp">
+    <div class="world" id="world">
+      <svg class="edges" id="edges"></svg>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <button id="zin" title="Zoom in">+</button>
+    <button id="zout" title="Zoom out">−</button>
+    <button id="fit" class="fit" title="Fit to screen">fit</button>
+  </div>
+
+  <div class="card" id="card">
+    <div class="head">
+      <div class="rankbar" id="c-rankbar"></div>
+      <button class="close" id="c-close">×</button>
+      <h2 id="c-name"></h2>
+      <div class="sub" id="c-sub"></div>
+    </div>
+    <div class="body" id="c-body"></div>
+  </div>
+
+<script>
+/* ============================ DATA ============================ */
+const RANKS = {
+  neophyte:{label:"Bloodling / Neophyte", color:"var(--neophyte)", text:"#2b0e09", order:1},
+  scion:   {label:"Scion",                color:"var(--scion)",    text:"#f7e6e1", order:2},
+  elder:   {label:"Elder",                color:"var(--elder)",    text:"#f7e6e1", order:3},
+  ascendant:{label:"Ascendant",           color:"var(--ascendant)",text:"#f4dcd7", order:4},
+  ancevil: {label:"Anc Evil",             color:"var(--ancevil)",  text:"#b2afb5", order:5},
+};
+
+// cx,cy = pixel centre in the original 8000x7828 reference art (used only for layout)
+const NODES = [
+  {id:"labyrinthine_soul", name:"Labyrinthine Soul", rank:"neophyte", xp:1, cx:475, cy:181,
+    tag:"Protect yourself from uses of Athena's Mirror.",
+    stats:{"Cost":"0 Blood Points", "Dice":"None", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["A defense against the probing of Athena's Mirror by its own users. When you activate Inscrutable Mind, attempts to use Athena's Mirror against you are hindered by your own mastery.","If the roll is contested, you add your rating in Athena's Mirror to your attempts to resist."]},
+  {id:"accuity", name:"Accuity", rank:"neophyte", xp:1, cx:4867, cy:181,
+    tag:"Sharpen your senses, perceive details with clarity.",
+    stats:{"Cost":"1 Blood Point", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Your senses sharpen, letting you perceive details with heightened clarity. On activation, gain a bonus of +1 die per rank in Empathy on all perception-related checks."]},
+  {id:"enhanced_initiative", name:"Enhanced Initiative", rank:"neophyte", xp:1, cx:2671, cy:181,
+    tag:"Use your enhanced senses to react faster to situations.",
+    stats:{"Cost":"1 Blood Point", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["Spend 1 Blood Point to add your rank in Empathy to your Initiative for one turn."]},
+  {id:"anubis_measure", name:"Anubis' Measure", rank:"neophyte", xp:1, cx:7519, cy:181,
+    tag:"Probe the inner workings of a subject's mind and soul.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror vs Resolve + Blood Potency", "Action":"Instant"},
+    desc:["Takes Insightful Gaze a few steps further, probing a subject's mind and soul. Use successes as questions to uncover their Nature, Demeanor, Humanity or Path, Willpower, and number of Attached Touchstones.","Exceptional: ask 2 additional Insightful Gaze questions. Botch: you gain a Derangement or mental/supernatural Flaw similar to one of the target's for one night."]},
+  {id:"mind_fracture", name:"Mind Fracture", rank:"neophyte", xp:2, cx:475, cy:1029,
+    tag:"Scramble the thoughts of a target, stunning them.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror vs Resolve + Blood Potency", "Action":"Instant or Reflexive"},
+    desc:["Force a vampire to experience a brief moment of completely scrambled thoughts. Usable reflexively against one target when initiative is rolled for combat.","Success stuns the target for one turn, slipping them into a momentary fugue, unaware of their surroundings. Any aggressive action toward them jerks them out immediately. Affected vampires notice a brief flash of torpor-like nightmarish imagery."]},
+  {id:"psychic_rebuff", name:"Psychic Rebuff", rank:"neophyte", xp:2, cx:1573, cy:1029,
+    tag:"Feel powers meddling with your mind and defend it.",
+    stats:{"Cost":"None (passive); 1 Blood Point (active)", "Action":"Reflexive", "Duration":"Instant"},
+    desc:["Whenever anyone attempts to use a mind-affecting power on you, you're automatically made aware of the attempt by a needles-and-pins tingle at the back of your head (though not who is doing it).","Spend a Blood Point to activate the defense: add your Resolve + Composure to the resistance roll. Effective against all powers that seek to alter or control your mind."]},
+  {id:"alectos_warning", name:"Alecto's Warning", rank:"neophyte", xp:2, cx:2671, cy:1029,
+    tag:"Perceive ambushes and dangers supernaturally.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror", "Action":"Reflexive"},
+    desc:["The turn before you'd be put in danger (an ambush, an unexpected use of magic or Discipline, a mundane trap), this activates reflexively to suss out the problem, automatically triggering Accuity's perception bonus and letting you roll to spot the danger.","This typically reveals a person or a specific spot. With an exceptional success, you may even ask an Insightful Gaze question about the source of danger (if you have it)."]},
+  {id:"sharp_senses", name:"Sharp Senses", rank:"neophyte", xp:1, cx:4867, cy:1029,
+    tag:"Dull a sense to heighten another, detect lies.",
+    stats:{"Cost":"1 Blood Point per effect", "Action":"Instant", "Duration":"Scene"},
+    desc:["Detect Lies: add your Empathy rank to rolls to detect lies (max +5 dice) for the scene. Heighten and Dull Senses: heighten one sense while suppressing another \u2014 the boosted sense gains 8-again and increased range.","Overload Risk: extreme stimulus to the heightened sense can cause overload (loss of the sense and 1 unsoakable bashing); recover with a reflexive Stamina roll over 5 cumulative successes. At Empathy 6, heightened senses no longer risk overload."]},
+  {id:"echoes_of_the_heart", name:"Echoes of the Heart", rank:"neophyte", xp:2, cx:7519, cy:1030,
+    tag:"Uncover the past with Insightful Gaze.",
+    stats:{},
+    desc:["Uncover not only someone's present state, but their history. You may ask any of the Insightful Gaze questions, but related to the past of the subject rather than only the present."]},
+  {id:"stolen_perspective", name:"Stolen Perspective", rank:"neophyte", xp:2, cx:475, cy:1872,
+    tag:"Hop onto somebody else's senses.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Wits + Empathy + Athena's Mirror vs Resolve + Blood Potency", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Tap into the senses of another mortal or vampire \u2014 seeing, hearing, and feeling what they do while retaining your own perceptions. Choose one, some, or all of the target's senses.","Requires line of sight on a stranger; can be used at range on someone with your Blood in them. Renew at the start of a new scene for 2 Blood Points. If the target resists, you can't try again until the next night."]},
+  {id:"eclipse_of_the_mind", name:"Eclipse of the Mind", rank:"neophyte", xp:2, cx:1573, cy:1872,
+    tag:"Shut down basic senses from someone you touch.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Wits + Empathy + Athena's Mirror vs Resolve + Blood Potency (if unwilling)", "Action":"Contested", "Duration":"Net successes in turns"},
+    desc:["With a touch, temporarily shut down one of a victim's five senses (blind, deafen, etc.) \u2014 often used in combat or interrogation. You must touch the subject.","If you win the contested roll, choose the sense negated. Exceptional: shut down a second sense. Dramatic failure: you lose one of your own senses for the scene. If your Athena's Mirror exceeds the subject's, you may negate a supernatural sense instead."]},
+  {id:"oracles_execution", name:"The Oracle's Execution", rank:"neophyte", xp:3, cx:2671, cy:1872,
+    tag:"Quickly answer opponents with lethal strikes.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive"},
+    desc:["Intuitively sense opponents and respond with impossibly accurate strikes. Activate in the first turn of combat, or in response to an ambush or surprise attempt.","For the turn, add your Empathy rank to Initiative; if you land a successful attack that turn, add your Empathy rank as extra weapon damage (max weapon damage 5). Once per scene."]},
+  {id:"echo_of_gazing", name:"Echo of Gazing", rank:"neophyte", xp:2, cx:3769, cy:1872,
+    tag:"Share the passive benefits of Athena's with another.",
+    stats:{"Cost":"1 Blood Point (turn) / 10 Blood Points (night)", "Dice":"None", "Action":"Instant"},
+    desc:["Touch a subject to impart your Athena's Mirror dots onto them for Empathy-rank turns \u2014 they count as having your Mirror and can spend Blood Points to use its passive effects. You don't lose access to the Discipline. Doesn't work on someone whose Mirror equals or exceeds yours.","At Empathy 6, you can grant one Devotion this way. At Empathy 7, it lasts one night and you can maintain subjects equal to your Blood Potency; at Empathy 9, even longer."]},
+  {id:"pale_gaze", name:"Pale Gaze", rank:"neophyte", xp:2, cx:4867, cy:1872,
+    tag:"See and hear objects and creatures in twilight.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["Perceive that which exists in the phase of Twilight \u2014 spirits, ghosts, psychic projections, and other intangible beings. Such beings can attempt to hide (a contested roll).","Know a twilight being's Rank with a reflexive Wits + Occult roll."]},
+  {id:"insightful_gaze", name:"Insightful Gaze", rank:"neophyte", xp:2, cx:5965, cy:1872,
+    tag:"Reveal hidden truths about a person, place, or object.",
+    stats:{"Cost":"Free once per scene; +1 Blood Point per extra use", "Dice":"Wits + Empathy + Athena's Mirror", "Action":"Instant"},
+    desc:["Pierce beyond the surface to reveal hidden truths. For each success, ask one question about: current emotions, immediate danger, weaknesses or vulnerabilities, hidden secrets or intentions, or external influence/control affecting the target.","You also gain the ability to see through illusions and falsehoods from other supernatural powers when you activate this (you must still actively search, and Clash of Wills applies)."]},
+  {id:"eye_of_yesterday", name:"Eye of Yesterday", rank:"neophyte", xp:2, cx:7519, cy:1872,
+    tag:"Trace the history of an object or being that you touch.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror", "Action":"Instant", "Duration":"Instant"},
+    desc:["Touch a target and send your psyche back through time to trace its history. Roll, subtracting 1 die for every month of age beyond the first you wish to assess; each added month also deals 1 bashing (negate one damage per success at the cost of that success's information).","Each success extracts one relevant fact from the target's history. Targeting a specific date negates 3 time-penalties and avoids bashing, but limits you to that day. Reach: months (base), years at Empathy 5, decades at 6, centuries at 8."]},
+  {id:"telepathy", name:"Telepathy", rank:"neophyte", xp:2, cx:475, cy:2715,
+    tag:"Read thoughts and memories, communicate mentally.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror vs Composure + Blood Potency", "Action":"Instant", "Duration":"Scene"},
+    desc:["Hear the thoughts of your target in your mind and communicate without words, sending thoughts and memories. You can try to read memories, even ones the target has blocked.","You may read one memory per net success."]},
+  {id:"slow_motion", name:"Slow Motion", rank:"neophyte", xp:2, cx:2671, cy:2715,
+    tag:"See the world in bullet time.",
+    stats:{"Cost":"1 Blood Point", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["For a moment you see everything at a slow crawl. You can examine details on fast-moving items, read multiple pages in three seconds, apply your Defense to ranged attacks, and benefit from aiming instantly.","If an attack is sped up by supernatural means, this doesn't work if your Athena's Mirror is more than 1 rank lower than the attack power."]},
+  {id:"wandering_perception", name:"Wandering Perception", rank:"neophyte", xp:2, cx:3769, cy:2715,
+    tag:"Slightly shift your perspective from where you are.",
+    stats:{"Cost":"First use per scene free; +1 Ichor each after", "Dice":"None", "Action":"Reflexive", "Duration":"1 turn"},
+    desc:["Briefly project all of your senses to another spot within your vicinity \u2014 peer around corners, read someone's secretive texts, or \"taste\" blood on a wall without approaching.","You can re-activate each turn to jump to a new place within your projected sensory range."]},
+  {id:"netherbound_hold", name:"Netherbound Hold", rank:"neophyte", xp:3, cx:4867, cy:2715,
+    tag:"Physically interact with twilight entities.",
+    stats:{"Cost":"1 Willpower", "Dice":"None", "Action":"Instant", "Duration":"Turn"},
+    desc:["Now that you can perceive ephemeral entities, spend a Willpower point to physically interact with them \u2014 use any of your gifts on them and even physically engage them."]},
+  {id:"steadfast_vigil", name:"Steadfast Vigil", rank:"neophyte", xp:2, cx:5965, cy:2715,
+    tag:"Passively pick up on illusions and obfuscations.",
+    stats:{"Cost":"None", "Dice":"None", "Action":"Reflexive", "Duration":"Always on"},
+    desc:["You passively pick up on supernatural illusions and obfuscations. You always trigger a Clash of Wills when such a power presents itself before you \u2014 a Baba Yaga's Fog illusion, a Hades' Cloak deception, and the like."]},
+  {id:"mirror_of_truth", name:"Mirror of Truth", rank:"neophyte", xp:1, cx:7519, cy:2715,
+    tag:"See the real form of a supernatural being.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror vs Composure + Blood Potency", "Action":"Instant", "Duration":"Instant"},
+    desc:["See the real form of a transformed supernatural being."]},
+  {id:"mind_chain", name:"Mind Chain", rank:"scion", xp:3, cx:475, cy:3547,
+    tag:"Link nearby minds to converse at the speed of thought.",
+    stats:{"Cost":"3 Blood Points", "Action":"Reflexive", "Duration":"Night"},
+    desc:["Form a powerful link between your mind and those of nearby subjects (max people equal to your Empathy rank), letting them converse in words, concepts, and sensory images at the speed of thought.","All targets must be in close vicinity and choose what to share. If a target moves out of range, they temporarily can't use or receive from the chain until they return."]},
+  {id:"forced_journey", name:"Forced Journey", rank:"scion", xp:2, cx:1575, cy:3547,
+    tag:"Force an enemy's soul out of their body with a touch.",
+    stats:{"Cost":"3 Blood Points, 1 Willpower", "Dice":"Wits + Empathy + Athena's Mirror vs Resolve + Blood Potency", "Action":"Contested", "Duration":"Net successes in turns"},
+    desc:["With a touch, force an enemy into astral projection, their soul leaving their body defenseless.","If successful, the victim's soul separates and is trapped near his body, unable to wander far. He may still use disciplines or powers while in twilight, if able."]},
+  {id:"astral_projection", name:"Astral Projection", rank:"scion", xp:3, cx:2671, cy:3547,
+    tag:"Step out of your body as a being of pure thought.",
+    stats:{"Cost":"2 Blood Points", "Dice":"Wits + Empathy + Athena's Mirror", "Action":"Instant", "Duration":"Indefinite"},
+    desc:["Step out of your body into a twilight astral form (noticeable only by vampires with Athena's Mirror). Move at your Speed \u00d7 (Empathy + Blood Potency), unbound by gravity, through obstacles and ground \u2014 you can see and hear but not interact or use gifts. Your body lies in a torpor-like state.","If your body is killed or driven to torpor, your mind snaps back. Each sunrise spent separated lowers one Ichor Rank (Final Death at 0; regained on return). Dramatic failure: you leave your body but don't know how to return."]},
+  {id:"guardians_perch", name:"Guardian's Perch", rank:"neophyte", xp:2, cx:3769, cy:3547,
+    tag:"Stand still and become omniscient in your haven.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive"},
+    desc:["Oversee your haven with immense clarity. You must remain completely still in a location covered by the Safe Place Merit, stationary at least ten minutes. Then you have full use of your Mirror abilities centered on any single spot you choose within the haven (changeable at will), and +5 to detect intruders.","If you move against an intruder, gain +5 Initiative for the scene. With a Willpower point, this works even while you slumber."]},
+  {id:"hades_covenant", name:"Hades' Covenant", rank:"elder", xp:1, cx:4867, cy:3547,
+    tag:"Interact with twilight entities for the whole scene.",
+    stats:{"Cost":"1 Willpower", "Dice":"None", "Action":"Instant", "Duration":"Scene"},
+    desc:["The expenditure of Willpower now fuels your interaction with ephemeral entities for the entire scene, rather than a single turn."]},
+  {id:"serpents_tongue", name:"Serpent's Tongue", rank:"neophyte", xp:2, cx:7519, cy:3553,
+    tag:"Adapt your discourse to better suit your listeners.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror", "Action":"Reflexive", "Duration":"1 roll"},
+    desc:["By reading the subtle reactions of your crowd, adapt your discourse to better suit your listeners. Spend a Blood Point and add your successes as extra dice to one social roll."]},
+  {id:"minds_reach", name:"Mind's Reach", rank:"elder", xp:3, cx:475, cy:4381,
+    tag:"Extend your mind across vast distances.",
+    stats:{"Cost":"3 BP (distance comms) / 4 BP +1 Willpower (deep link)", "Dice":"Wits + Empathy + Athena's Mirror vs Composure + Blood Potency (if unwilling)", "Action":"Instant", "Duration":"Scene"},
+    desc:["Telepathic Communication: commune mentally with a known target at vast range (Empathy 6: 800 km; 7: 2,000 km; 8: 800 km/Wits; 9: 1,500 km/Wits).","Deep Mental Link: form an intense bond with a target in your presence, reading thoughts in real time and channeling gifts through the link. Successes unlock more: 1 = link only, 2 = other Mirror gifts, 4 = other mental gifts, 5 = blood magic. If concentration breaks, only passive thought-reading remains."]},
+  {id:"whispering_eidolon", name:"Whispering Eidolon", rank:"elder", xp:3, cx:2673, cy:4381,
+    tag:"Keep your gifts while astral projecting.",
+    stats:{"Cost":"3 Blood Points (1 Willpower/turn at higher rank)", "Dice":"None", "Action":"Reflexive"},
+    desc:["When activating Astral Projection, also activate this to retain a direct tie to your gifts \u2014 ignore the normal limit on using other Disciplines while projecting (requirements still apply). Pre-pay the Ichor for the powers you want ready, from your blood pool, while casting the projection; you can't recover blood while paying for this.","At Empathy 7+, spend an instant action to manifest your twilight form as a translucent ghost in the material world \u2014 you can't touch things but can inflict mental or social powers, and others can't affect you unless able to touch ephemeral beings. Costs 1 Willpower per turn to maintain."]},
+  {id:"augurs_shield", name:"Augur's Shield", rank:"scion", xp:3, cx:3769, cy:4381,
+    tag:"Apply your Defense against attacks you can't see.",
+    stats:{"Cost":"1 Blood Point", "Dice":"None", "Action":"Reflexive", "Duration":"One turn"},
+    desc:["Your strength of blood alerts you to danger before it happens, picking up traces of intent from your enemies' minds.","For the duration, you may apply your Defense against attacks you can't see coming, as long as you're still able to physically react."]},
+  {id:"read_like_a_book", name:"Read Like a Book", rank:"ascendant", xp:4, cx:4867, cy:4381,
+    tag:"Analyze a foe to enhance your attacks or defenses.",
+    stats:{"Cost":"5 Blood Points", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["Focus on a foe to analyze and predict their movements. For the rest of the scene, each turn you have a pool of dice equal to your Empathy rank.","Distribute these as bonuses to your attacks against that opponent, or as defensive bonuses against their attacks. You may re-adjust the distribution reflexively once per turn."]},
+  {id:"unseen_choir", name:"Unseen Choir", rank:"elder", xp:3, cx:5964, cy:4381,
+    tag:"Read the aura of a whole crowd to find a detail.",
+    stats:{"Cost":"5 Blood Points", "Dice":"Wits + Empathy + Athena's Mirror vs Resolve + Blood Potency", "Action":"Instant"},
+    desc:["Read the auras of a large group of people to discern a given detail among them \u2014 for example, looking for who is in Sanguine Fealty inside a crowd."]},
+  {id:"silent_epistle", name:"Silent Epistle", rank:"neophyte", xp:1, cx:7519, cy:4381,
+    tag:"Encrypt a psychic message in an object.",
+    stats:{"Cost":"1 Blood Point", "Dice":"Wits + Empathy + Athena's Mirror", "Action":"Instant"},
+    desc:["By holding an item, manipulate its psychic imprint so anyone who later reads it with The Spirit's Touch receives a short vision of your choice (about 15\u201330 seconds).","Use it to secure messages, plant false impressions for a rival who reads impressions, or cleanse objects of meaningful data. The message lasts one day per success (one week per success at Empathy 6; up to a year per success at 7+)."]},
+  {id:"voice_of_thoth", name:"Voice of Thoth", rank:"ascendant", xp:3, cx:475, cy:5215,
+    tag:"Become a switchboard for a telepathic web.",
+    stats:{"Cost":"6 Blood Points, 1 Willpower", "Dice":"Wits + Empathy + Athena's Mirror \u2212 number of people to link", "Action":"Instant", "Duration":"Scene"},
+    desc:["Form an even more powerful mental link, acting as a \"switchboard operator\" to create a telepathic web where participants share thoughts with some or all of the network as they choose.","Range and number of links depend on your Empathy: rank 7 \u2192 10 targets / 500 km; rank 8 \u2192 20 / 1,000 km; rank 9 \u2192 40 / 2,000 km."]},
+  {id:"astral_entourage", name:"Astral Entourage", rank:"ascendant", xp:3, cx:2673, cy:5215,
+    tag:"Bring others with you into the astral realm.",
+    stats:{"Cost":"1 Blood Point per follower", "Action":"Instant"},
+    desc:["Bring others with you when you use Twilight Projection. All must be in physical contact with you (or with someone in contact with you); spend 1 Blood Point per follower, up to your Wits. While in contact, each follower is treated as if they know psychic projection.","On the astral plane, followers stay tethered within ~100 feet of you. Any who lose physical contact snap back to their body and lose Willpower equal to 8 \u2212 your Wits (falling unconscious until next sunset if reduced to 0)."]},
+  {id:"window_in_the_horizon", name:"Window in the Horizon", rank:"elder", xp:3, cx:3769, cy:5215,
+    tag:"Perceive distant events without projecting.",
+    stats:{"Cost":"5 Blood Points, 1 Willpower", "Dice":"Wits + Empathy + Athena's Mirror \u2212 range modifier", "Action":"Instant", "Duration":"One turn per success"},
+    desc:["Perceive distant events without Psychic Projection: concentrate on a familiar person, place, or object to observe its immediate vicinity while staying aware of your own surroundings.","Other perception Mirror powers may be used on the viewed scene. Range penalty: \u22121 (5\u201310 km), \u22122 (10\u201350), \u22123 (50\u2013100), \u22124 (100\u2013250), \u22125 (250\u2013500), \u22121 per additional 500 km."]},
+  {id:"whisper_of_the_cosmos", name:"Whisper of the Cosmos", rank:"ascendant", xp:4, cx:4867, cy:5215,
+    tag:"Fire your first four Mirror powers at everyone near you.",
+    stats:{"Cost":"8 Blood Points, 1 Willpower", "Dice":"Wits + Empathy + Athena's Mirror", "Action":"Reflexive", "Duration":"1 roll"},
+    desc:["Automatically activate any or all of your first four main Athena's Mirror powers for the scene. If a power requires a roll, roll only once and compare against all potential subjects in your vicinity, digesting all the information instantly.","The Storyteller focuses on the important information \u2014 general sentiment plus specific exceptions \u2014 rather than every individual."]},
+  {id:"yamas_reckoning", name:"Yama's Reckoning", rank:"ascendant", xp:3, cx:5964, cy:5215,
+    tag:"Glimpse the very karma of a subject.",
+    stats:{"Cost":"5 Blood Points", "Dice":"Wits + Empathy + Athena's Mirror vs Resolve + Blood Potency", "Action":"Reflexive"},
+    desc:["Take a brief glimpse at a subject's karma \u2014 the general balance between their \"good\" and \"bad\" actions, recent and lifelong. If the plot merits it, you may see visions of incidents that radically altered their destiny.","On an exceptional success, fate-related Merits and Flaws (like Dark Fate) can be identified as well."]},
+  {id:"labyrinths_key", name:"The Labyrinth's Key", rank:"neophyte", xp:3, cx:7519, cy:5215,
+    tag:"See through any surface as if it were glass.",
+    stats:{"Cost":"1 Blood Point per point of the material's durability (min 1)", "Dice":"None", "Action":"Reflexive", "Duration":"Scene"},
+    desc:["See through any surface as if it were glass (it doesn't actually become glass, so no one on the other side can see you). Affects a 3\u00d73-foot area of stone to a depth of up to three feet.","Spend additional Blood Points to increase the depth by another three feet each."]},
+  {id:"mind_shatter", name:"Mind Shatter", rank:"ascendant", xp:4, cx:475, cy:6040,
+    tag:"Assault a target's psyche, draining will or killing.",
+    stats:{"Cost":"5 Blood Points (+1 Willpower vs supernatural targets)", "Dice":"Wits + Empathy + Athena's Mirror vs Composure + Blood Potency", "Action":"Contested", "Duration":"Instant"},
+    desc:["Focus your mind into a direct assault on a target's psyche. Each success you win the contest by removes a point of Willpower; if they can't lose Willpower, they take 1 lethal psychic damage per point instead.","Losing 2+ Willpower or taking 2+ damage forces a fear-frenzy roll (penalty equal to the loss). Against a 0-Willpower target you may render them unconscious for the night or force a vampire to torpor; dealing more damage than their total Willpower can kill them instantly."]},
+  {id:"morpheus_unchaining", name:"Morpheus Unchaining", rank:"ancevil", xp:4, cx:2673, cy:6040,
+    tag:"Astral-travel automatically while in torpor.",
+    stats:{},
+    desc:["Whenever your body is in torpor or unconscious, this power is active and you're considered to be using Astral Travel.","You cannot awaken your body at will, however \u2014 waking from torpor or daysleep follows the normal rules."]},
+  {id:"cosmic_ledger", name:"Cosmic Ledger", rank:"ascendant", xp:4, cx:3769, cy:6040,
+    tag:"Sense deeds anywhere in the world about a known target.",
+    stats:{"Cost":"10 Blood Points, 1 Willpower", "Dice":"Wits + Empathy + Athena's Mirror \u2212 target's Blood Potency", "Action":"10-minute ritual", "Duration":"Instant"},
+    desc:["Sense events and deeds anywhere in the world about a target you've already read with another Mirror power \u2014 their life may be an open book. Supplies raw observations (sight and hearing), not thoughts or motivations, and only of the past and present.","It reads vampires only up to Elder rank (higher ones are invisible; you deduce from those around them); other supernaturals resist via their own power Trait; mortals can be read at will. A failed attempt locks you out of that target for a full year."]},
+  {id:"omniscient_awareness", name:"Omniscient Awareness", rank:"ancevil", xp:4, cx:4867, cy:6040,
+    tag:"Perception becomes a constant extension of your mind.",
+    stats:{"Cost":"None (always active)", "Duration":"Permanent"},
+    desc:["Your perception becomes a constant, unerring extension of your consciousness \u2014 no subtle movement, unspoken thought, or hidden detail escapes you.","You permanently enjoy Heightened Senses with immunity to overload; you're constantly aware of everything in your immediate surroundings (unless obscured by a higher-rank power like Hades' Cloak); and you receive spontaneous visions and insights about matters of personal importance."]},
+  {id:"unmasking_glare", name:"Unmasking Glare", rank:"neophyte", xp:3, cx:7519, cy:6040,
+    tag:"Shut down effects that you pierce with Athena's.",
+    stats:{"Cost":"2 Blood Points", "Dice":"None", "Action":"Reflexive"},
+    desc:["Extends Insightful Gaze's illusion-piercing with force. Activate any time you win a Clash of Wills to pierce a hiding ability (like Hades' Cloak).","Not only do you win the Clash of Wills, but the victim's hiding effect ends immediately \u2014 he can re-activate it normally on his next turn."]},
+];
+
+const EDGES = [
+  ["labyrinthine_soul","mind_fracture"],
+  ["labyrinthine_soul","psychic_rebuff"],
+  ["mind_fracture","stolen_perspective"],
+  ["stolen_perspective","telepathy"],
+  ["telepathy","mind_chain"],
+  ["mind_chain","minds_reach"],
+  ["minds_reach","voice_of_thoth"],
+  ["voice_of_thoth","mind_shatter"],
+  ["psychic_rebuff","eclipse_of_the_mind"],
+  ["enhanced_initiative","alectos_warning"],
+  ["alectos_warning","oracles_execution"],
+  ["oracles_execution","slow_motion"],
+  ["astral_projection","forced_journey"],
+  ["astral_projection","whispering_eidolon"],
+  ["whispering_eidolon","astral_entourage"],
+  ["astral_entourage","morpheus_unchaining"],
+  ["accuity","enhanced_initiative"],
+  ["accuity","sharp_senses"],
+  ["sharp_senses","echo_of_gazing"],
+  ["sharp_senses","pale_gaze"],
+  ["sharp_senses","insightful_gaze"],
+  ["echo_of_gazing","wandering_perception"],
+  ["wandering_perception","guardians_perch"],
+  ["guardians_perch","astral_projection"],
+  ["guardians_perch","augurs_shield"],
+  ["augurs_shield","window_in_the_horizon"],
+  ["window_in_the_horizon","cosmic_ledger"],
+  ["pale_gaze","netherbound_hold"],
+  ["netherbound_hold","hades_covenant"],
+  ["hades_covenant","read_like_a_book"],
+  ["read_like_a_book","whisper_of_the_cosmos"],
+  ["whisper_of_the_cosmos","omniscient_awareness"],
+  ["insightful_gaze","steadfast_vigil"],
+  ["steadfast_vigil","unseen_choir"],
+  ["unseen_choir","yamas_reckoning"],
+  ["unseen_choir","read_like_a_book"],
+  ["insightful_gaze","anubis_measure"],
+  ["insightful_gaze","echoes_of_the_heart"],
+  ["insightful_gaze","eye_of_yesterday"],
+  ["insightful_gaze","mirror_of_truth"],
+  ["insightful_gaze","serpents_tongue"],
+  ["insightful_gaze","silent_epistle"],
+  ["insightful_gaze","labyrinths_key"],
+  ["insightful_gaze","unmasking_glare"],
+];
+
+/* ============================ LAYOUT ============================ */
+const SC = 0.26;                 // reference px -> world px
+const NW = 260, NH = 88;          // node box size (world px)
+const world = document.getElementById('world');
+const edgesSvg = document.getElementById('edges');
+const byId = {};
+NODES.forEach(n=>{ n.x = n.cx*SC; n.y = n.cy*SC; byId[n.id]=n; });
+
+// world bounds
+let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+NODES.forEach(n=>{ minX=Math.min(minX,n.x-NW/2); maxX=Math.max(maxX,n.x+NW/2);
+                   minY=Math.min(minY,n.y-NH/2); maxY=Math.max(maxY,n.y+NH/2); });
+const PAD=90;
+const W = (maxX-minX)+PAD*2, H=(maxY-minY)+PAD*2;
+const ox = -minX+PAD, oy=-minY+PAD;
+NODES.forEach(n=>{ n.x+=ox; n.y+=oy; });
+world.style.width=W+'px'; world.style.height=H+'px';
+edgesSvg.setAttribute('width',W); edgesSvg.setAttribute('height',H);
+edgesSvg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+
+// edges (orthogonal elbows)
+const edgeEls=[];
+EDGES.forEach(([a,b])=>{
+  const pa=byId[a], pb=byId[b]; if(!pa||!pb) return;
+  const x1=pa.x, y1=pa.y+NH/2, x2=pb.x, y2=pb.y-NH/2;
+  let d;
+  if(Math.abs(x2-x1)<0.5){
+    d = `M ${x1} ${y1} L ${x2} ${y2}`;                 // straight vertical
+  } else {
+    const my=(y1+y2)/2, dir=x2>x1?1:-1;
+    const r=Math.min(13, Math.abs(x2-x1)/2, Math.abs(my-y1), Math.abs(y2-my));
+    d = `M ${x1} ${y1} L ${x1} ${my-r} Q ${x1} ${my} ${x1+dir*r} ${my} `+
+        `L ${x2-dir*r} ${my} Q ${x2} ${my} ${x2} ${my+r} L ${x2} ${y2}`;
+  }
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d',d); p.setAttribute('class','edge');
+  edgesSvg.appendChild(p);
+  edgeEls.push({el:p,a,b});
+});
+
+// nodes
+NODES.forEach(n=>{
+  const r=RANKS[n.rank];
+  const el=document.createElement('div');
+  el.className='node'; el.dataset.id=n.id;
+  el.style.left=(n.x-NW/2)+'px'; el.style.top=(n.y-NH/2)+'px';
+  el.style.background=r.color; el.style.color=r.text;
+  el.innerHTML =
+    `<span class="chk"></span>`+
+    `<span class="xp">${n.xp}</span>`+
+    `<div class="nm">${n.name}</div>`+
+    `<div class="tg">${n.tag}</div>`;
+  world.appendChild(el);
+  n.el=el;
+});
+
+/* ============================ PAN / ZOOM ============================ */
+const vp=document.getElementById('vp');
+let scale=1, tx=0, ty=0;
+function apply(){ world.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`; if(activeNode) positionCard(activeNode); }
+function fit(){
+  const vw=vp.clientWidth, vh=vp.clientHeight;
+  const s=Math.min(vw/W, vh/H)*0.92;
+  scale=Math.max(0.12, Math.min(s,1.4));
+  tx=(vw-W*scale)/2; ty=(vh-H*scale)/2 + 14;
+  apply();
+}
+function zoomAt(cx,cy,factor){
+  const ns=Math.max(0.15, Math.min(scale*factor, 2.4));
+  const k=ns/scale;
+  tx = cx - (cx-tx)*k; ty = cy - (cy-ty)*k; scale=ns; apply();
+}
+vp.addEventListener('wheel',e=>{ e.preventDefault();
+  const r=vp.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+document.getElementById('zin').onclick =()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1.2);
+document.getElementById('zout').onclick=()=>zoomAt(vp.clientWidth/2,vp.clientHeight/2,1/1.2);
+document.getElementById('fit').onclick =fit;
+
+// drag pan (mouse + touch)
+let dragging=false, moved=false, sx=0,sy=0,stx=0,sty=0, pid=null;
+vp.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')) return;      // let node handle its own events
+  dragging=true; moved=false; pid=e.pointerId; vp.setPointerCapture(pid);
+  sx=e.clientX; sy=e.clientY; stx=tx; sty=ty; vp.classList.add('drag');
+  hideHint();
+});
+vp.addEventListener('pointermove',e=>{
+  if(!dragging) return;
+  const dx=e.clientX-sx, dy=e.clientY-sy;
+  if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  tx=stx+dx; ty=sty+dy; apply();
+});
+function endDrag(){ dragging=false; vp.classList.remove('drag'); }
+vp.addEventListener('pointerup',e=>{ endDrag(); if(!moved && !e.target.closest('.node')) closeCard(); });
+vp.addEventListener('pointercancel',endDrag);
+
+// pinch zoom
+const active=new Map(); let pinchDist=0, pinchMid=null;
+vp.addEventListener('pointerdown',e=>active.set(e.pointerId,e));
+vp.addEventListener('pointermove',e=>{
+  if(!active.has(e.pointerId)) return; active.set(e.pointerId,e);
+  if(active.size===2){
+    const [p,q]=[...active.values()];
+    const d=Math.hypot(p.clientX-q.clientX,p.clientY-q.clientY);
+    const r=vp.getBoundingClientRect();
+    const mid={x:(p.clientX+q.clientX)/2-r.left,y:(p.clientY+q.clientY)/2-r.top};
+    if(pinchDist){ zoomAt(mid.x,mid.y,d/pinchDist); }
+    pinchDist=d; pinchMid=mid; dragging=false;
+  }
+});
+function clearPinch(e){ active.delete(e.pointerId); if(active.size<2) pinchDist=0; }
+vp.addEventListener('pointerup',clearPinch);
+vp.addEventListener('pointercancel',clearPinch);
+
+/* ============================ DETAIL CARD ============================ */
+const card=document.getElementById('card');
+const cName=document.getElementById('c-name'), cSub=document.getElementById('c-sub'),
+      cBody=document.getElementById('c-body'), cBar=document.getElementById('c-rankbar');
+let activeNode=null, pinned=false, hideTimer=null;
+const isMobile=()=>matchMedia('(max-width:720px)').matches;
+
+function fillCard(n){
+  const r=RANKS[n.rank];
+  cBar.style.background=r.color;
+  cName.textContent=n.name;
+  cSub.innerHTML=`${r.label} &nbsp;·&nbsp; <b>${n.xp} XP</b>`;
+  let html='';
+  const st=n.stats||{};
+  const keys=Object.keys(st);
+  if(keys.length){
+    html+='<div class="stats">'+keys.map(k=>`<span class="st"><b>${k}</b>${st[k]}</span>`).join('')+'</div>';
+  }
+  n.desc.forEach((p,i)=>{
+    const cls = n.pending ? 'pending' : (i===0?'lead':'');
+    html+=`<p class="${cls}">${p}</p>`;
+  });
+  cBody.innerHTML=html; cBody.scrollTop=0;
+}
+function positionCard(n){
+  if(isMobile()){ card.style.left=''; card.style.top=''; return; }
+  const rect=n.el.getBoundingClientRect();
+  const cw=card.offsetWidth||340, ch=card.offsetHeight||400, gap=14;
+  let left = rect.right+gap;
+  if(left+cw>window.innerWidth-8) left = rect.left-gap-cw;
+  if(left<8) left=8;
+  let top = rect.top;
+  if(top+ch>window.innerHeight-8) top=window.innerHeight-8-ch;
+  if(top<62) top=62;
+  card.style.left=left+'px'; card.style.top=top+'px';
+}
+function openCard(n,pin){
+  activeNode=n; if(pin) pinned=true;
+  NODES.forEach(x=>x.el.classList.toggle('active',x===n));
+  highlightEdges(n.id);
+  fillCard(n); card.classList.add('show'); positionCard(n);
+}
+function closeCard(){
+  pinned=false; activeNode=null; card.classList.remove('show');
+  NODES.forEach(x=>x.el.classList.remove('active'));
+  highlightEdges(null);
+}
+document.getElementById('c-close').onclick=closeCard;
+card.addEventListener('pointerenter',()=>{ if(hideTimer){clearTimeout(hideTimer);hideTimer=null;} });
+card.addEventListener('pointerleave',()=>{ if(!pinned) scheduleHide(); });
+function scheduleHide(){ hideTimer=setTimeout(()=>{ if(!pinned) closeCard(); },140); }
+
+function highlightEdges(id){
+  edgeEls.forEach(e=>{
+    const hot = id && (e.a===id||e.b===id);
+    e.el.classList.toggle('hot',!!hot);
+  });
+}
+
+// node interactions
+NODES.forEach(n=>{
+  n.el.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='touch') return;
+    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+    if(!pinned) openCard(n,false);
+  });
+  n.el.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='touch') return;
+    if(!pinned) scheduleHide();
+  });
+  n.el.addEventListener('click',e=>{
+    e.stopPropagation();
+    hideHint();
+    if(activeNode===n && pinned){ closeCard(); }
+    else { openCard(n,true); }
+  });
+});
+
+/* ============================ SEARCH ============================ */
+const q=document.getElementById('q');
+if(q) q.addEventListener('input',()=>{
+  const v=q.value.trim().toLowerCase();
+  NODES.forEach(n=>{
+    if(!v){ n.el.classList.remove('dim','match'); return; }
+    const hit = n.name.toLowerCase().includes(v) || n.tag.toLowerCase().includes(v);
+    n.el.classList.toggle('match',hit);
+    n.el.classList.toggle('dim',!hit);
+  });
+});
+
+/* ============================ LEGEND ============================ */
+const legend=document.getElementById('legend');
+const rankOrder=Object.entries(RANKS).sort((a,b)=>a[1].order-b[1].order);
+const hidden=new Set();
+rankOrder.forEach(([key,r])=>{
+  const d=document.createElement('div'); d.className='lg'; d.dataset.rank=key;
+  d.innerHTML=`<span class="sw" style="background:${r.color}"></span>${r.label}`;
+  d.onclick=()=>{
+    if(hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    d.classList.toggle('off',hidden.has(key));
+    NODES.forEach(n=>{ n.el.style.display = hidden.has(n.rank)?'none':''; });
+    edgeEls.forEach(e=>{
+      const on = !hidden.has(byId[e.a].rank) && !hidden.has(byId[e.b].rank);
+      e.el.style.display = on?'':'none';
+    });
+  };
+  legend.appendChild(d);
+});
+
+/* ============================ INIT ============================ */
+let hintGone=false;
+function hideHint(){ if(hintGone) return; hintGone=true; const h=document.getElementById('hint'); if(h) h.classList.add('gone'); }
+setTimeout(hideHint,6000);
+window.addEventListener('resize',()=>{ if(activeNode) positionCard(activeNode); });
+fit();
+</script>
+</body>
+</html>
